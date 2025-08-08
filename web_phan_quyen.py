@@ -94,7 +94,22 @@ locations = {
     "Bình Dương": (11.3254, 106.4770),
     "Đồng Nai": (10.9453, 106.8133),
 }
-selected_city = st.selectbox(_("📍 Chọn địa điểm:", "📍 Select location:"), list(locations.keys()))
+# Tên địa điểm song ngữ
+location_names = {
+    "TP. Hồ Chí Minh": _("TP. Hồ Chí Minh", "Ho Chi Minh City"),
+    "Hà Nội": _("Hà Nội", "Hanoi"),
+    "Cần Thơ": _("Cần Thơ", "Can Tho"),
+    "Đà Nẵng": _("Đà Nẵng", "Da Nang"),
+    "Bình Dương": _("Bình Dương", "Binh Duong"),
+    "Đồng Nai": _("Đồng Nai", "Dong Nai")
+}
+#selected_city = st.selectbox(_("📍 Chọn địa điểm:", "📍 Select location:"), list(locations.keys()))
+# Tạo danh sách hiển thị tên tỉnh theo ngôn ngữ
+location_display_names = [location_names[k] for k in locations.keys()]
+selected_city_display = st.selectbox(_("📍 Chọn địa điểm:", "📍 Select location:"), location_display_names)
+# Chuyển từ tên hiển thị về tên gốc
+selected_city = next(k for k, v in location_names.items() if v == selected_city_display)
+# Tọa độ
 latitude, longitude = locations[selected_city]
 
 # --- NÔNG SẢN ---
@@ -146,7 +161,7 @@ elif user_type == _("Người giám sát", " Monitoring Officer"):
         selected_crop = crop_data[selected_city]["crop"]
         planting_date = date.fromisoformat(crop_data[selected_city]["planting_date"])
         #st.success(f"📍 { _('Đang trồng', 'Currently growing') }: **{selected_crop}** - **{selected_city}** - { _('từ ngày', 'since') } **{planting_date.strftime('%d/%m/%Y')}**")
-        st.success(f"📍 { _('Đang trồng', 'Currently growing') }: **{crop_names[selected_crop]}** - **{selected_city}** - { _('từ ngày', 'since') } **{planting_date.strftime('%d/%m/%Y')}**")
+        st.success(f"📍 { _('Đang trồng', 'Currently growing') }: **{crop_names[selected_crop]}** - **{location_names[selected_city]}** - { _('từ ngày', 'since') } **{planting_date.strftime('%d/%m/%Y')}**")
         # Hiển thị độ ẩm đất yêu cầu theo loại cây
         if selected_crop in required_soil_moisture:
             st.markdown(
@@ -307,6 +322,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
