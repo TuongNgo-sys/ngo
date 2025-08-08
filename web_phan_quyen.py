@@ -104,6 +104,12 @@ crops = {
     "Rau cải": (30, 45),
     "Ớt": (70, 90), 
 }
+# Hiển thị độ ẩm đất yêu cầu theo loại cây
+if selected_crop in required_soil_moisture:
+    st.markdown(
+        f"🌱 **{_('Độ ẩm đất cần thiết cho', 'Required soil moisture for')} {selected_crop}**: "
+        f"**{required_soil_moisture[selected_crop]}%**"
+    )
 # Độ ẩm đất yêu cầu tối thiểu theo loại cây trồng
 required_soil_moisture = {
     "Ngô": 65,
@@ -266,6 +272,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
