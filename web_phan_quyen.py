@@ -99,7 +99,7 @@ latitude, longitude = locations[selected_city]
 
 # --- NÔNG SẢN ---
 crops = {
-    "Ngô/sdádas": (75, 100), 
+    "Ngô": (75, 100), 
     "Chuối": (270, 365),
     "Rau cải": (30, 45),
     "Ớt": (70, 90), 
@@ -290,6 +290,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
