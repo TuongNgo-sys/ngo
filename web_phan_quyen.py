@@ -32,7 +32,7 @@ is_controller = False
 
 if user_type == "Người điều khiển":
     password = st.text_input("🔐 Nhập mật khẩu:", type="password")
-    if password == "admin123":  # <-- Bạn có thể thay đổi mật khẩu tại đây
+    if password == "123456hihi":  # <-- Bạn có thể thay đổi mật khẩu tại đây
         st.success("✅ Đăng nhập thành công.")
         is_controller = True
     else:
@@ -145,3 +145,4 @@ esp32_response = {
     "sensor_hum": sensor_hum
 }
 st.code(esp32_response, language='json')
+
