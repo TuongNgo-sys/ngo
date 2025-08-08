@@ -108,10 +108,14 @@ if user_type.strip() == "Monitoring Officer":
         selected_crop = crop_data[selected_city]["crop"]
         planting_date = date.fromisoformat(crop_data[selected_city]["planting_date"])
         st.success(f"📍 Đang trồng: **{selected_crop}** tại **{selected_city}** từ ngày **{planting_date.strftime('%d/%m/%Y')}**")
-    else:
-        selected_crop = st.selectbox("🌱 Chọn loại nông sản:", list(crops.keys()))
-        planting_date = st.date_input("📅 Ngày gieo trồng:")
-
+    elif user_type == "Monitoring Officer":
+      if selected_city in crop_data:
+        selected_crop = crop_data[selected_city]["crop"]
+        planting_date = date.fromisoformat(crop_data[selected_city]["planting_date"])
+        st.success(f"📍 Đang trồng: **{selected_crop}** tại **{selected_city}** từ ngày **{planting_date.strftime('%d/%m/%Y')}**")
+       else:
+        st.warning("📍 Chưa có thông tin gieo trồng tại khu vực này.")
+        st.stop()
         # Lưu thông tin vào crop_data
         crop_data[selected_city] = {
             "crop": selected_crop,
