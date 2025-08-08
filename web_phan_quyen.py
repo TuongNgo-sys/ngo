@@ -14,8 +14,31 @@ st_autorefresh(interval=3600 * 1000, key="refresh")
 
 
 # --- CHỌN NGÔN NGỮ ---
-lang = st.sidebar.selectbox("🌐 Language / Ngôn ngữ", ["Tiếng Việt", "English"])
-vi = lang == "Tiếng Việt"
+if "language" not in st.session_state:
+    st.session_state.language = "Tiếng Việt"  # Mặc định
+
+st.session_state.language = st.selectbox(
+    "Language / Ngôn ngữ",
+    ["English", "Tiếng Việt"],
+    index=0 if st.session_state.language == "English" else 1
+)
+
+# --- Chọn vai trò ---
+if "role" not in st.session_state:
+    st.session_state.role = "Người giám sát"  # Mặc định
+
+if st.session_state.language == "English":
+    role_options = ["Monitoring Officer", "Controller"]
+else:
+    role_options = ["Người giám sát", "Người điều khiển"]
+
+st.session_state.role = st.selectbox(
+    "Select role" if st.session_state.language == "English" else "Chọn vai trò",
+    role_options,
+    index=role_options.index(st.session_state.role) if st.session_state.role in role_options else 0
+)
+
+role = st.session_state.role
 
 
 # --- HÀM DỊCH ---
