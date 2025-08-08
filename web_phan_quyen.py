@@ -136,7 +136,6 @@ crop_names = {
     "Rau cải": _("Rau cải", "Mustard greens"),
     "Ớt": _("Ớt", "Chili pepper")
 }
-
 if user_type == _("Người điều khiển", "Control Administrator"):
     #selected_crop = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), list(crops.keys()))
     # Hiển thị danh sách cây trồng theo ngôn ngữ
@@ -253,9 +252,11 @@ def giai_doan_cay(crop, days):
         elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
         else: return _("🌶️ Trước thu hoạch", "🌶️ Pre-harvest")
 #st.info(f"📅 { _('Đã trồng', 'Planted for') }: **{days_since} { _('ngày', 'days') }**\n\n🔍 {giai_doan_cay(selected_crop, days_since)}")
-st.info(f"📅 { _('Đã trồng', 'Planted for') }: **{days_since} { _('ngày', 'days') }**\n\n"
-         f"🌿 { _('Loại cây', 'Crop type') }: **{crop_names[selected_crop]}**\n\n"
-         f"🔍 {giai_doan_cay(crop_names[selected_crop], days_since)}")
+st.info(
+    f"📅 { _('Đã trồng', 'Planted for') }: **{days_since} { _('ngày', 'days') }**\n\n"
+    f"🌿 { _('Loại cây', 'Crop type') }: **{crop_names[selected_crop]}**\n\n"
+    f"🔍 {giai_doan_cay(selected_crop, days_since)}"
+)
 
 
 # --- TƯỚI NƯỚC ---
@@ -358,66 +359,3 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
