@@ -37,7 +37,7 @@ with col1:
         st.warning("❌ Không tìm thấy logo.png")
 with col2:
     st.markdown("<h3 style='color: #004aad;'>Ho Chi Minh City University of Technology and Education</h3>", unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #004aad;'>Faculty of International Training</h4>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #004aad;'>Faculty of International Training</h3>", unsafe_allow_html=True)
 
 st.markdown("<h2 style='text-align: center;'>🌾 Smart Agricultural Irrigation System 🌾</h2>", unsafe_allow_html=True)
 
@@ -187,6 +187,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
