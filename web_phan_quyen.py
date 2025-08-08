@@ -148,6 +148,7 @@ harvest_min = planting_date + timedelta(days=min_days)
 harvest_max = planting_date + timedelta(days=max_days)
 st.success(f"🌾 { _('Dự kiến thu hoạch từ', 'Expected harvest from') } **{harvest_min.strftime('%d/%m/%Y')}** { _('đến', 'to') } **{harvest_max.strftime('%d/%m/%Y')}**")
 
+
 # --- API THỜI TIẾT ---
 weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability&timezone=auto"
 
@@ -289,6 +290,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
