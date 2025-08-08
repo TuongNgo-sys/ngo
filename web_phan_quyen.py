@@ -14,13 +14,13 @@ st_autorefresh(interval=3600 * 1000, key="refresh")
 
 
 #--- CHỌN NGÔN NGỮ ---
-lang = st.sidebar.selectbox("🌐 Language / Ngôn ngữ", ["Tiếng Việt", "English"])
+lang = st.sidebar.selectbox("🌐 Language / Ngôn ngữ", ["English", "Tiếng Việt"])
 vi = lang == "English"
 
 
 # --- HÀM DỊCH ---
-def _(vi_text, en_text):
-    return vi_text if vi else en_text
+def _(en_text, vi_text):
+    return en_text if en else vi_text
 
 DATA_FILE = "crop_data.json"
 
@@ -354,6 +354,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
