@@ -103,7 +103,7 @@ crops = {
     "Ớt": (70, 90), 
 }
 
-if user_type == " Monitoring Officer":
+if user_type == "Monitoring Officer":
     selected_crop = st.selectbox("🌱 Chọn loại nông sản:", list(crops.keys()))
     planting_date = st.date_input("📅 Ngày gieo trồng:")
 
@@ -114,7 +114,7 @@ if user_type == " Monitoring Officer":
     }
     save_crop_data(crop_data)
 
-elif user_type == " Monitoring Officer":
+elif user_type == "Monitoring Officer":
     if selected_city in crop_data:
         selected_crop = crop_data[selected_city]["crop"]
         planting_date = date.fromisoformat(crop_data[selected_city]["planting_date"])
