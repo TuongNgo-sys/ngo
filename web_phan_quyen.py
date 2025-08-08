@@ -212,7 +212,7 @@ st.write(f"☀️ { _('Cường độ ánh sáng', 'Light intensity') }: **{sens
 # --- SO SÁNH ---
 st.subheader(_("🧠 So sánh dữ liệu cảm biến và thời tiết (theo khung giờ)", "🧠 Time-Based Comparison of Sensor and Weather Data"))
 current_hour = now.hour
-in_compare_time = (4 <= current_hour < 6) or (13 <= current_hour < 15)
+in_compare_time = (3 <= current_hour < 6) or (13 <= current_hour < 15)
 
 if in_compare_time:
     temp_diff = abs(current_weather.get("temperature_2m", 0) - sensor_temp)
@@ -224,7 +224,7 @@ if in_compare_time:
         st.warning(f"⚠️ { _('Sai lệch trong khung giờ', 'Deviation detected') }: {temp_diff:.1f}°C & {hum_diff:.1f}%")
 else:
     st.info(_("⏱️ Hiện tại không trong khung giờ so sánh (04:00–06:00 hoặc 13:00–15:00).",
-              "⏱️ Outside comparison time window (04:00–06:00 or 13:00–15:00)."))
+              "⏱️ Outside comparison time window (03:00–06:00 or 13:00–15:00)."))
 
 
 # --- GIAI ĐOẠN CÂY ---
@@ -354,6 +354,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
