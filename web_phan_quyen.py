@@ -44,35 +44,10 @@ with col1:
     except:
         st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))
 with col2:
-   st.markdown(
-    """
-    <style>
-    h1 {
-        color: #0000FF !important;
-        font-size: 25px !important;
-        font-family: Arial, sans-serif !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-st.markdown("<h1>Ho Chi Minh City University of Technology and Education</h1>", unsafe_allow_html=True)
-st.markdown("<h1>International Training Institute</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='color: #004aad;'>Ho Chi Minh City University of Technology and Education</h1>", unsafe_allow_html=True)
+st.markdown("<h2 style='color: #004aad;'>International Training Institute</h2>", unsafe_allow_html=True)
 
-st.markdown(
-    """
-    <style>
-    h2 {
-        color: #000000 !important;
-        font-size: 30px !important;
-        font-family: Arial, sans-serif !important;
-        font-weight: center !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-st.markdown(f"<h2>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
+st.markdown(f"<h2 style='text-align: center;'>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
 
 # Thiết lập múi giờ Việt Nam
 vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
@@ -235,6 +210,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
