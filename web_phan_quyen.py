@@ -103,25 +103,21 @@ crops = {
     "Ớt": (70, 90), 
 }
 
-if user_type == "Monitoring Officer":
-    selected_crop = st.selectbox("🌱 Chọn loại nông sản:", list(crops.keys()))
-    planting_date = st.date_input("📅 Ngày gieo trồng:")
-
-    # Lưu thông tin vào crop_data
-    crop_data[selected_city] = {
-        "crop": selected_crop,
-        "planting_date": planting_date.isoformat()
-    }
-    save_crop_data(crop_data)
-
-elif user_type == "Monitoring Officer":
+if user_type.strip() == "Monitoring Officer":
     if selected_city in crop_data:
         selected_crop = crop_data[selected_city]["crop"]
         planting_date = date.fromisoformat(crop_data[selected_city]["planting_date"])
         st.success(f"📍 Đang trồng: **{selected_crop}** tại **{selected_city}** từ ngày **{planting_date.strftime('%d/%m/%Y')}**")
     else:
-        st.warning("📍 Chưa có thông tin gieo trồng tại khu vực này.")
-        st.stop()
+        selected_crop = st.selectbox("🌱 Chọn loại nông sản:", list(crops.keys()))
+        planting_date = st.date_input("📅 Ngày gieo trồng:")
+
+        # Lưu thông tin vào crop_data
+        crop_data[selected_city] = {
+            "crop": selected_crop,
+            "planting_date": planting_date.isoformat()
+        }
+        save_crop_data(crop_data)
 
 # --- DỰ ĐOÁN THU HOẠCH ---
 min_days, max_days = crops[selected_crop]
@@ -214,6 +210,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
