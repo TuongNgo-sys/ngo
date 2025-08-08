@@ -26,7 +26,7 @@ flask_thread.start()
 
 # =============== STREAMLIT APP ===============
 st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
-st_autorefresh(interval=3600 * 1000, key="refresh")
+st_autorefresh(interval=1800000, key="refresh")  # 30 phút
 
 # --- LOGO ---
 col1, col2 = st.columns([1, 6])
@@ -69,6 +69,12 @@ locations = {
 }
 selected_city = st.selectbox("📍 Chọn địa điểm:", list(locations.keys()))
 latitude, longitude = locations[selected_city]
+
+# Nếu là giám sát viên, hiển thị cây trồng đang theo dõi
+if not is_controller:
+    st.info(f"📍 **{selected_city}** hiện đang trồng: **{city_crops[selected_city]}**")
+    selected_crop = city_crops[selected_city]
+    planting_date = date.today() - timedelta(days=10)  # giả định 10 ngày đã trồng
 
 # --- CHỈ NGƯỜI ĐIỀU KHIỂN ĐƯỢC PHÉP CHỌN NÔNG SẢN ---
 crops = {
@@ -168,3 +174,4 @@ esp32_data.update({
     "weather_rain_prob": current_weather.get("precipitation_probability", 0)
 })
 st.code(esp32_data, language='json')
+
