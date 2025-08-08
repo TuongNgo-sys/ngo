@@ -40,10 +40,10 @@ with col2:
     """
     <style>
     h1 {
-        color: #0000FF;
-        font-size: 20px !important;
-        font-family: Arial, sans-serif;
-        font-weight: bold;
+        color: #0000FF !important;
+        font-size: 25px !important;
+        font-family: Arial, sans-serif !important;
+        font-weight: bold !important;
     }
     </style>
     """,
@@ -56,11 +56,11 @@ st.markdown(
     """
     <style>
     h2 {
-        color: #004aad;
-        font-size: 50px;
-        font-family: Arial, sans-serif;
-        font-weight: bold;
-        text-align: center;
+        color: #004aad !important;
+        font-size: 30px !important;
+        font-family: Arial, sans-serif !important;
+        font-weight: bold !important;
+        text-align: center !important;
     }
     </style>
     """,
@@ -214,6 +214,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
