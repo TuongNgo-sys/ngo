@@ -12,9 +12,44 @@ import pandas as pd
 st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
 st_autorefresh(interval=3600 * 1000, key="refresh")
 
-#--- CHỌN NGÔN NGỮ ---
-lang = st.sidebar.selectbox("🌐 Language / Ngôn ngữ", ["Tiếng Việt", "English"])
-vi = lang == "Tiếng Việt"
+# Khởi tạo session state chỉ khi chưa tồn tại
+if "login_status" not in st.session_state:
+    st.session_state.login_status = False
+if "role" not in st.session_state:
+    st.session_state.role = None
+if "language" not in st.session_state:
+    st.session_state.language = "vi"  # mặc định tiếng Việt
+
+# Chọn ngôn ngữ
+language = st.selectbox(
+    "Ngôn ngữ / Language",
+    ("vi", "en"),
+    index=0 if st.session_state.language == "vi" else 1
+)
+st.session_state.language = language
+
+# Đăng nhập
+if not st.session_state.login_status:
+    username = st.text_input("Tên đăng nhập / Username")
+    password = st.text_input("Mật khẩu / Password", type="password")
+    role = st.selectbox("Vai trò / Role", ["Giám sát", "Điều khiển"])
+
+    if st.button("Đăng nhập"):
+        if role == "Điều khiển" and password == "1234":
+            st.session_state.login_status = True
+            st.session_state.role = role
+        elif role == "Giám sát":
+            st.session_state.login_status = True
+            st.session_state.role = role
+        else:
+            st.error("Sai mật khẩu / Wrong password")
+else:
+    st.success(f"Đã đăng nhập với vai trò: {st.session_state.role}")
+
+    if st.session_state.role == "Điều khiển":
+        st.write("Chức năng điều khiển ở đây...")
+    else:
+        st.write("Thông tin giám sát ở đây...")
 
 
 # --- HÀM DỊCH ---
@@ -74,17 +109,6 @@ st.markdown(
 st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }:{now.strftime('%d/%m/%Y')}</h3>", unsafe_allow_html=True)
 
 
-# --- PHÂN QUYỀN ---
-st.sidebar.title(_("🔐 Chọn vai trò người dùng", "🔐 Select User Role"))
-user_type = st.sidebar.radio(_("Bạn là:", "You are:"), [_("Người điều khiển", "Control Administrator"),_("Người giám sát", " Monitoring Officer")])
-
-if user_type == _("Người điều khiển", "Control Administrator"):
-    password = st.sidebar.text_input(_("🔑 Nhập mật khẩu:", "🔑 Enter password:"), type="password")
-    if password != "admin123":
-        st.sidebar.error(_("❌ Mật khẩu sai. Truy cập bị từ chối.", "❌ Incorrect password. Access denied."))
-        st.stop()
-    else:
-        st.sidebar.success(_("✅ Xác thực thành công.", "✅ Authentication successful."))
 
 
 # --- ĐỊA ĐIỂM ---
@@ -353,6 +377,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
