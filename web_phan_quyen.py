@@ -223,7 +223,7 @@ if in_compare_time:
     else:
         st.warning(f"⚠️ { _('Sai lệch trong khung giờ', 'Deviation detected') }: {temp_diff:.1f}°C & {hum_diff:.1f}%")
 else:
-    st.info(_("⏱️ Hiện tại không trong khung giờ so sánh (04:00–06:00 hoặc 13:00–15:00).",
+    st.info(_("⏱️ Hiện tại không trong khung giờ so sánh (03:00–06:00 hoặc 13:00–15:00).",
               "⏱️ Outside comparison time window (03:00–06:00 or 13:00–15:00)."))
 
 
@@ -259,25 +259,35 @@ st.subheader(_("🚰 Quyết định tưới nước", "🚰 Irrigation Decision
 
 is_irrigating = False
 irrigation_reason = ""
-# Ghi nhận thời gian bắt đầu nếu quyết định tưới
+auto_irrigate = False
+
+# Lấy lại dữ liệu chờ quyết định từ session_state
 start_wait_time = st.session_state.get("start_wait_time", None)
 decision_made = st.session_state.get("decision_made", False)
-auto_irrigate = False
+
+# Nếu đang chờ quyết định thì refresh mỗi 5 giây để cập nhật đồng hồ
+if start_wait_time and not decision_made:
+    st_autorefresh(interval=5000, key="wait_refresh")
+
 if in_compare_time:
     threshold = required_soil_moisture.get(selected_crop, 60)
     if sensor_hum < threshold:
         irrigation_reason = _("💧 Độ ẩm thấp hơn mức yêu cầu", "💧 Moisture below required level")
-        if user_type == _("Người điều khiển", "Control Administrator"):
-            # Ghi thời gian bắt đầu nếu chưa có
-            if not start_wait_time:
-                st.session_state["start_wait_time"] = now
-                start_wait_time = now
-                st.session_state["decision_made"] = False
 
-            elapsed = (now - start_wait_time).total_seconds() / 60  # minutes
+        if user_type == _("Người điều khiển", "Control Administrator"):
+            # Nếu chưa bắt đầu chờ, lưu thời gian bắt đầu
+            if not start_wait_time:
+                st.session_state["start_wait_time"] = datetime.now(vn_tz)
+                start_wait_time = st.session_state["start_wait_time"]
+                st.session_state["decision_made"] = False
+            else:
+                start_wait_time = st.session_state["start_wait_time"]
+
+            elapsed = (now - start_wait_time).total_seconds() / 60  # phút
+            remaining = max(0, 5 - elapsed)
 
             st.warning(f"💧 { _('Cần tưới nước', 'Irrigation needed') } - { _('Lý do', 'Reason') }: {irrigation_reason}")
-            st.info(f"⏳ { _('Thời gian chờ quyết định', 'Time waiting for decision') }: {elapsed:.1f} phút")
+            st.info(f"⏳ { _('Thời gian chờ quyết định', 'Time waiting for decision') }: {remaining:.1f} phút còn lại")
 
             if not decision_made and elapsed < 5:
                 col1, col2 = st.columns(2)
@@ -294,17 +304,21 @@ if in_compare_time:
             elif not decision_made and elapsed >= 5:
                 is_irrigating = True
                 auto_irrigate = True
-                st.success(_("🕔 Sau 5 phút không có quyết định – TỰ ĐỘNG BẬT BƠM", "🕔 No decision after 5 mins – AUTO PUMP ON"))
+                st.success(_("🕔 Sau 5 phút không có quyết định – TỰ ĐỘNG BẬT BƠM", 
+                             "🕔 No decision after 5 mins – AUTO PUMP ON"))
         else:
             is_irrigating = True
             st.success(_("💦 Tự động tưới do độ ẩm thấp", "💦 Auto irrigation due to low moisture"))
     else:
-        st.info(f"✅ { _('Không tưới - độ ẩm đủ', 'No irrigation - soil moisture sufficient') } ({sensor_hum:.1f}% ≥ {threshold}%)")
-        # Reset nếu không cần tưới
+        st.info(f"✅ { _('Không tưới - độ ẩm đủ', 'No irrigation - soil moisture sufficient') } "
+                f"({sensor_hum:.1f}% ≥ {threshold}%)")
+        # Reset trạng thái nếu không cần tưới
         st.session_state["start_wait_time"] = None
         st.session_state["decision_made"] = False
 else:
-    st.info(_("⏱️ Không trong khung giờ tưới (04:00–06:00 hoặc 13:00–15:00)", "⏱️ Not in irrigation time window (04:00–06:00 or 13:00–15:00)"))
+    st.info(_("⏱️ Không trong khung giờ tưới (03:00–06:00 hoặc 13:00–15:00)", 
+              "⏱️ Not in irrigation time window (03:00–06:00 or 13:00–15:00)"))
+
 
 # --- KẾT QUẢ JSON ---
 st.subheader(_("🔁 Dữ liệu gửi về ESP32 (giả lập)", "🔁 Data sent to ESP32 (simulated)"))
@@ -354,6 +368,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
