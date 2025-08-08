@@ -1,27 +1,13 @@
 # web_esp.py
 import streamlit as st
-from flask import Flask, jsonify
-import threading
 import requests
 from datetime import datetime, timedelta, date
 import random
 from PIL import Image
 from streamlit_autorefresh import st_autorefresh
 
-# ------------------ FLASK API ------------------
-app = Flask(__name__)
-esp32_response = {}
-
-@app.route('/api/status', methods=['GET'])
-def get_status():
-    return jsonify(esp32_response)
-
-def run_flask():
-    app.run(port=8000, debug=False, use_reloader=False)
-
 # ------------------ STREAMLIT APP ------------------
 def run_streamlit():
-    global esp32_response
     st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
     st_autorefresh(interval=10 * 1000, key="refresh_time")
 
@@ -84,59 +70,6 @@ def run_streamlit():
     st.write(f"💧 Độ ẩm đất cảm biến: **{sensor_hum} %**")
     st.write(f"☀️ Cường độ ánh sáng: **{sensor_light} lux**")
 
-    st.subheader("🧠 So sánh dữ liệu")
-    temp_diff = abs(current_weather.get("temperature_2m", 0) - sensor_temp)
-    hum_diff = abs(current_weather.get("relative_humidity_2m", 0) - sensor_hum)
-
-    if temp_diff < 2 and hum_diff < 10:
-        st.success("✅ Cảm biến trùng khớp thời tiết.")
-    else:
-        st.warning(f"⚠️ Sai lệch dữ liệu: {temp_diff:.1f}°C & {hum_diff:.1f}%")
-
-    days_since_planting = (date.today() - planting_date).days
-
-    if selected_crop == "Chuối":
-        def chuoi_stage(days):
-            if days <= 14:
-                return "🌱 Giai đoạn mới trồng: tưới mỗi ngày nhẹ, tránh úng."
-            elif days <= 180:
-                return "🌿 Giai đoạn phát triển: tưới 2-3 ngày/lần, trời nắng thì tưới mỗi ngày."
-            elif days <= 330:
-                return "🌼 Giai đoạn ra hoa nuôi trái: tưới 1-2 ngày/lần để trái ngọt."
-            else:
-                return "🍌 Trước thu hoạch: giảm nước để chuối ngọt và chắc múi."
-        st.info(f"📅 Đã trồng: **{days_since_planting} ngày**\n\n🔍 {chuoi_stage(days_since_planting)}")
-
-    if selected_crop == "Rau cải":
-        def raucai_stage(days):
-            if days <= 25:
-                return "🌱 Giai đoạn mới trồng: tưới đều, không để khô."
-            else:
-                return "🌿 Giai đoạn trưởng thành: giảm dần trước thu hoạch để cải ngon."
-        st.info(f"📅 Đã trồng: **{days_since_planting} ngày**\n\n🔍 {raucai_stage(days_since_planting)}")
-
-    if selected_crop == "Ngô":
-        def ngo_stage(days):
-            if days <= 25:
-                return "🌱 Giai đoạn mới trồng: tưới đủ ẩm."
-            elif days <= 70:
-                return "🌿 Giai đoạn thụ phấn: tưới nhiều, rất quan trọng để tạo hạt."
-            elif days <= 100:
-                return "🌼 Giai đoạn phát triển trái: duy trì ẩm vừa phải."
-            else:
-                return "Trước thu hoạch: giảm nước để trái ngọt chắc hạt."
-        st.info(f"📅 Đã trồng: **{days_since_planting} ngày**\n\n🔍 {ngo_stage(days_since_planting)}")
-
-    if selected_crop == "Ớt":
-        def ot_stage(days):
-            if days <= 20:
-                return "🌱 Giai đoạn mới trồng: Tưới sương hoặc nhỏ giọt."
-            elif days <= 500:
-                return "🌿 Giai đoạn ra hoa: tưới nhiều, cần nước liên tục để quả phát triển."
-            else:
-                return "🍌 Trước thu hoạch: giảm dần để thu hoạch."
-        st.info(f"📅 Đã trồng: **{days_since_planting} ngày**\n\n🔍 {ot_stage(days_since_planting)}")
-
     st.subheader("🚰 Hệ thống tưới")
     rain_prob = current_weather.get("precipitation_probability", 0)
 
@@ -149,7 +82,7 @@ def run_streamlit():
     else:
         st.info("⛅ Không tưới - độ ẩm đủ hoặc trời sắp mưa.")
 
-    st.subheader("🔁 Kết quả gửi về ESP32")
+    st.subheader("🔁 Dữ liệu gửi về ESP32 (giả lập)")
     esp32_response = {
         "time": now.strftime('%H:%M:%S'),
         "irrigate": is_irrigating,
@@ -161,9 +94,5 @@ def run_streamlit():
     st.markdown("---")
     st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 
-# ------------------ MAIN ------------------
 if __name__ == '__main__':
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
     run_streamlit()
