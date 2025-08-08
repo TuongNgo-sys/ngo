@@ -52,8 +52,8 @@ st.markdown(f"<h2 style='text-align: center;'>🌾 { _('Hệ thống tưới ti�
 # Thiết lập múi giờ Việt Nam
 vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
 now = datetime.now(vn_tz)
-st.markdown(f"<h5>Thời gian hiện tại (VN): {now.strftime('%H:%M:%S - %d/%m/%Y')}</h5>", unsafe_allow_html=True)
-#st.markdown(f"**⏰ { _('Thời gian hiện tại', 'Current time') }:** {now.strftime('%d/%m/%Y')}")
+#st.markdown(f"<h5>Thời gian hiện tại (VN): {now.strftime('%d/%m/%Y')}</h5>", unsafe_allow_html=True)
+st.markdown(f"**⏰ { _('Thời gian hiện tại', 'Current time') }:** {now.strftime('%d/%m/%Y')}")
 
 # --- PHÂN QUYỀN ---
 st.sidebar.title(_("🔐 Chọn vai trò người dùng", "🔐 Select User Role"))
@@ -193,6 +193,7 @@ esp32_response = {
     "sensor_hum": sensor_hum
 }
 st.code(esp32_response, language='json')
+
 
 
 
