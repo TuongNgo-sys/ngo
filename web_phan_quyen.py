@@ -42,7 +42,7 @@ try:
 except:
         st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))
 
-st.markdown(f"<h2 style='text-align: center; font-size: 30px;'>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
+st.markdown(f"<h2 style='text-align: center; font-size: 60px;'>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
 
 # Thiết lập múi giờ Việt Nam
 vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
@@ -205,6 +205,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
