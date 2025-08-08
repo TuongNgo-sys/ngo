@@ -37,9 +37,7 @@ crop_data = load_crop_data()
 
 # --- LOGO ---
 try:
-        logo = Image.open("logo1.png")
-        resized_image = image.resize((1200, 150))  # (width, height) in pixels
-        st.image(resized_image)
+        logo = Image.open("logo1.png",width=1200)
 except:
         st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))
 
