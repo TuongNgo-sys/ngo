@@ -99,19 +99,18 @@ latitude, longitude = locations[selected_city]
 
 # --- NÔNG SẢN ---
 crops = {
-    ("Ngô", "Corn"): (75, 100), 
-    ("Chuối", "Banana"): (270, 365),
-    ("Rau cải", "Leafy Greens"): (30, 45),
-    ("Ớt", "Chili Pepper"): (70, 90), 
+    "Ngô": (75, 100), 
+    "Chuối": (270, 365),
+    "Rau cải": (30, 45),
+    "Ớt": (70, 90), 
 }
 # Độ ẩm đất yêu cầu tối thiểu theo loại cây trồng
 required_soil_moisture = {
-    ("Ngô", "Corn"): 65,
-    ("Chuối", "Banana"): 70,
-    ("Rau cải", "Leafy Greens"): 60,
-    ("Ớt", "Chili Pepper"): 65
+    "Ngô": 65,
+    "Chuối": 70,
+    "Rau cải": 60,
+    "Ớt": 65
 }
-
 if user_type == _("Người điều khiển", "Control Administrator"):
     selected_crop = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), list(crops.keys()))
     planting_date = st.date_input(_("📅 Ngày gieo trồng:", "📅 Planting date:"))
@@ -192,30 +191,22 @@ st.subheader(_("📈 Giai đoạn phát triển cây", "📈 Plant Growth Stage"
 days_since = (date.today() - planting_date).days
 
 def giai_doan_cay(crop, days):
-    crop_vi = crop if vi else {
-        "Corn": "Ngô",
-        "Banana": "Chuối",
-        "Leafy Greens": "Rau cải",
-        "Chili Pepper": "Ớt"
-    }.get(crop, crop)
-
-    if crop_vi == "Chuối":
+    if crop == "Chuối":
         if days <= 14: return _("🌱 Mới trồng", "🌱 Newly planted")
         elif days <= 180: return _("🌿 Phát triển", "🌿 Growing")
         elif days <= 330: return _("🌼 Ra hoa", "🌼 Flowering")
         else: return _("🍌 Trước thu hoạch", "🍌 Pre-harvest")
-    elif crop_vi == "Rau cải":
+    elif crop == "Rau cải":
         return _("🌱 Mới trồng", "🌱 Newly planted") if days <= 25 else _("🌿 Trưởng thành", "🌿 Mature")
-    elif crop_vi == "Ngô":
+    elif crop == "Ngô":
         if days <= 25: return _("🌱 Mới trồng", "🌱 Newly planted")
         elif days <= 70: return _("🌿 Thụ phấn", "🌿 Pollination")
         elif days <= 100: return _("🌼 Trái phát triển", "🌼 Kernel growth")
         else: return _("🌽 Trước thu hoạch", "🌽 Pre-harvest")
-    elif crop_vi == "Ớt":
+    elif crop == "Ớt":
         if days <= 20: return _("🌱 Mới trồng", "🌱 Newly planted")
         elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
         else: return _("🌶️ Trước thu hoạch", "🌶️ Pre-harvest")
-
 
 st.info(f"📅 { _('Đã trồng', 'Planted for') }: **{days_since} { _('ngày', 'days') }**\n\n🔍 {giai_doan_cay(selected_crop, days_since)}")
 
