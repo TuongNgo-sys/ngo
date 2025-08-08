@@ -37,9 +37,18 @@ crop_data = load_crop_data()
 
 # --- LOGO ---
 try:
-        st.image(Image.open("logo1.png"), width=1200)
+        #st.image(Image.open("logo1.png"), width=1200)
+    st.markdown(
+    """
+    <div style="text-align: center; padding-top: 0px;">
+        <img src="logo1.png" width="1000" height="200">
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
 except:
-        st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))
+    st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))
 
 st.markdown(f"<h2 style='text-align: center; font-size: 50px;'>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
 
@@ -204,6 +213,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
