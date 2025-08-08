@@ -38,7 +38,7 @@ crop_data = load_crop_data()
 # --- LOGO ---
 try:
         logo = Image.open("logo1.png")
-        st.image(logo, width=1200)
+        st.image(logo, width=1200, high=100)
 except:
         st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))
 
@@ -205,6 +205,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
