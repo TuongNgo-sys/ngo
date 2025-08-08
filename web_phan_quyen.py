@@ -79,7 +79,20 @@ st.markdown(f"<h2>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông min
 vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
 now = datetime.now(vn_tz)
 #st.markdown(f"<h5>Thời gian hiện tại (VN): {now.strftime('%d/%m/%Y')}</h5>", unsafe_allow_html=True)
-st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }:</h3> {now.strftime('%d/%m/%Y')}")
+st.markdown(
+    """
+    <style>
+    h3 {
+        color: #000000 !important;
+        font-size: 10px !important;
+        font-family: Arial, sans-serif !important;
+        font-weight: bold !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }:{now.strftime('%d/%m/%Y')}</h3> ")
 
 # --- PHÂN QUYỀN ---
 st.sidebar.title(_("🔐 Chọn vai trò người dùng", "🔐 Select User Role"))
@@ -223,6 +236,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
