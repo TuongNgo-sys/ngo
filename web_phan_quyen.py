@@ -191,19 +191,19 @@ st.subheader(_("📈 Giai đoạn phát triển cây", "📈 Plant Growth Stage"
 days_since = (date.today() - planting_date).days
 
 def giai_doan_cay(crop, days):
-    if crop == "Chuối":
+    if crop == "Chuối/Banana":
         if days <= 14: return _("🌱 Mới trồng", "🌱 Newly planted")
         elif days <= 180: return _("🌿 Phát triển", "🌿 Growing")
         elif days <= 330: return _("🌼 Ra hoa", "🌼 Flowering")
         else: return _("🍌 Trước thu hoạch", "🍌 Pre-harvest")
-    elif crop == "Rau cải":
+    elif crop == "Rau cải/Mustard greens":
         return _("🌱 Mới trồng", "🌱 Newly planted") if days <= 25 else _("🌿 Trưởng thành", "🌿 Mature")
-    elif crop == "Ngô":
+    elif crop == "Ngô/Corn":
         if days <= 25: return _("🌱 Mới trồng", "🌱 Newly planted")
         elif days <= 70: return _("🌿 Thụ phấn", "🌿 Pollination")
         elif days <= 100: return _("🌼 Trái phát triển", "🌼 Kernel growth")
         else: return _("🌽 Trước thu hoạch", "🌽 Pre-harvest")
-    elif crop == "Ớt":
+    elif crop == "Ớt/Chili pepper":
         if days <= 20: return _("🌱 Mới trồng", "🌱 Newly planted")
         elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
         else: return _("🌶️ Trước thu hoạch", "🌶️ Pre-harvest")
@@ -277,6 +277,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
