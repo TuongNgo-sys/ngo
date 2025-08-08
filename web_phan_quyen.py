@@ -37,7 +37,6 @@ crop_data = load_crop_data()
 
 # --- LOGO ---
 col1 = st.columns([1, 6])
-with col1:
     try:
         logo = Image.open("logo1.png")
         st.image(logo, width=500)
@@ -207,6 +206,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
