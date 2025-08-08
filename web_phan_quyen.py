@@ -99,17 +99,17 @@ latitude, longitude = locations[selected_city]
 
 # --- NÔNG SẢN ---
 crops = {
-    "Ngô/Corn": (75, 100), 
-    "Chuối/Banana": (270, 365),
-    "Rau cải/Mustard greens": (30, 45),
-    "Ớt/Chili pepper": (70, 90), 
+    "Ngô": (75, 100), 
+    "Chuối": (270, 365),
+    "Rau cải": (30, 45),
+    "Ớt": (70, 90), 
 }
 # Độ ẩm đất yêu cầu tối thiểu theo loại cây trồng
 required_soil_moisture = {
-    "Ngô/Corn": 65,
-    "Chuối/Banana": 70,
-    "Rau cải/Mustard greens": 60,
-    "Ớt/Chili pepper": 65
+    "Ngô": 65,
+    "Chuối": 70,
+    "Rau cải": 60,
+    "Ớt": 65
 }
 if user_type == _("Người điều khiển", "Control Administrator"):
     selected_crop = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), list(crops.keys()))
@@ -150,8 +150,20 @@ st.success(f"🌾 { _('Dự kiến thu hoạch từ', 'Expected harvest from') }
 
 # --- API THỜI TIẾT ---
 weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability&timezone=auto"
-weather_data = requests.get(weather_url).json()
-current_weather = weather_data.get("current", {})
+
+try:
+    response = requests.get(weather_url, timeout=10)
+    response.raise_for_status()  # Gây lỗi nếu mã không phải 200
+    weather_data = response.json()
+    current_weather = weather_data.get("current", {})
+except Exception as e:
+    st.error(f"❌ {_('Lỗi khi tải dữ liệu thời tiết', 'Error loading weather data')}: {str(e)}")
+    current_weather = {
+        "temperature_2m": "N/A",
+        "relative_humidity_2m": "N/A",
+        "precipitation": "N/A",
+        "precipitation_probability": "N/A"
+    }
 
 st.subheader(_("🌦️ Thời tiết hiện tại", "🌦️ Current Weather"))
 col1, col2, col3 = st.columns(3)
@@ -277,6 +289,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
