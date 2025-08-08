@@ -104,6 +104,13 @@ crops = {
     "Rau cải": (30, 45),
     "Ớt": (70, 90), 
 }
+# Độ ẩm đất yêu cầu tối thiểu theo loại cây trồng
+required_soil_moisture = {
+    "Ngô": 65,
+    "Chuối": 70,
+    "Rau cải": 60,
+    "Ớt": 65
+}
 
 if user_type == _("Người điều khiển", "Control Administrator"):
     selected_crop = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), list(crops.keys()))
@@ -194,13 +201,21 @@ st.info(f"📅 { _('Đã trồng', 'Planted for') }: **{days_since} { _('ngày',
 
 # --- TƯỚI NƯỚC ---
 st.subheader(_("🚰 Quyết định tưới nước", "🚰 Irrigation Decision"))
-rain_prob = current_weather.get("precipitation_probability", 0)
-is_irrigating = sensor_hum < 60 and rain_prob < 30
 
-if is_irrigating:
-    st.success(_("💦 ĐANG TƯỚI (ESP32 bật bơm)", "💦 IRRIGATING (ESP32 pump ON)"))
+is_irrigating = False
+irrigation_reason = ""
+
+if in_compare_time:
+    threshold = required_soil_moisture.get(selected_crop, 60)
+    if sensor_hum < threshold:
+        is_irrigating = True
+        irrigation_reason = _("💧 Độ ẩm thấp hơn mức yêu cầu", "💧 Moisture below required level")
+        st.success(f"💦 { _('ĐANG TƯỚI (ESP32 bật bơm)', 'IRRIGATING (ESP32 pump ON)') }")
+        st.info(f"📉 { _('Lý do', 'Reason') }: {irrigation_reason} ({sensor_hum:.1f}% < {threshold}%)")
+    else:
+        st.info(f"✅ { _('Không tưới - độ ẩm đủ', 'No irrigation - soil moisture sufficient') } ({sensor_hum:.1f}% ≥ {threshold}%)")
 else:
-    st.info(_("⛅ Không tưới - độ ẩm đủ hoặc trời sắp mưa.", "⛅ No irrigation - soil moist or rain expected."))
+    st.info(_("⏱️ Không trong khung giờ tưới (04:00–06:00 hoặc 13:00–15:00)", "⏱️ Not in irrigation time window (04:00–06:00 or 13:00–15:00)"))
 
 # --- KẾT QUẢ JSON ---
 st.subheader(_("🔁 Dữ liệu gửi về ESP32 (giả lập)", "🔁 Data sent to ESP32 (simulated)"))
@@ -228,20 +243,30 @@ history_data.append(esp32_response)
 with open(HISTORY_FILE, "w") as f:
     json.dump(history_data, f, ensure_ascii=False, indent=2)
 
-# Hiển thị bảng lịch sử gần nhất
+# Hiển thị bảng lịch sử chỉ trong khung giờ so sánh
 import pandas as pd
 
-if history_data:
-    df_history = pd.DataFrame(history_data)
-    df_history = df_history.sort_values(by="time", ascending=False).head(10)  # chỉ hiển thị 10 bản ghi mới nhất
+def in_time_window(t):
+    try:
+        hour = int(t.split(":")[0])
+        return (4 <= hour < 6) or (13 <= hour < 15)
+    except:
+        return False
+
+filtered_data = list(filter(lambda d: in_time_window(d["time"]), history_data))
+
+if filtered_data:
+    df_history = pd.DataFrame(filtered_data)
+    df_history = df_history.sort_values(by="time", ascending=False).head(10)
     st.dataframe(df_history)
 else:
-    st.info(_("Chưa có dữ liệu lịch sử.", "No history data available."))
+    st.info(_("Chưa có dữ liệu lịch sử trong khung giờ so sánh.", "No history data available in comparison time window."))
 
 # --- GHI CHÚ ---
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
