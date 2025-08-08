@@ -60,7 +60,7 @@ with col2:
 st.markdown("<h1>Ho Chi Minh City University of Technology and Education</h1>", unsafe_allow_html=True)
 st.markdown("<h1>International Training Institute</h1>", unsafe_allow_html=True)
 
-   st.markdown(
+st.markdown(
     """
     <style>
     h2 {
@@ -223,6 +223,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
