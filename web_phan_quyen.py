@@ -22,7 +22,6 @@ st.session_state.language = st.selectbox(
     ["English", "Tiếng Việt"],
     index=0 if st.session_state.language == "English" else 1
 )
-
 # --- Chọn vai trò ---
 if "role" not in st.session_state:
     st.session_state.role = "Người giám sát"  # Mặc định
@@ -37,7 +36,6 @@ st.session_state.role = st.selectbox(
     role_options,
     index=role_options.index(st.session_state.role) if st.session_state.role in role_options else 0
 )
-
 role = st.session_state.role
 
 
@@ -377,4 +375,5 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
