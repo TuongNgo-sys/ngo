@@ -108,7 +108,7 @@ if user_type.strip() == "Monitoring Officer":
         selected_crop = crop_data[selected_city]["crop"]
         planting_date = date.fromisoformat(crop_data[selected_city]["planting_date"])
         st.success(f"📍 Đang trồng: **{selected_crop}** tại **{selected_city}** từ ngày **{planting_date.strftime('%d/%m/%Y')}**")
-    elif user_type == "Monitoring Officer":
+elif user_type == "Monitoring Officer":
       if selected_city in crop_data:
         selected_crop = crop_data[selected_city]["crop"]
         planting_date = date.fromisoformat(crop_data[selected_city]["planting_date"])
@@ -214,6 +214,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
