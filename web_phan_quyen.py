@@ -5,7 +5,26 @@ from PIL import Image
 import requests
 from streamlit_autorefresh import st_autorefresh
 
-# --- CẤU HÌNH ---
+from flask import Flask, jsonify, request
+from threading import Thread
+
+# =============== FLASK APP ===============
+flask_app = Flask(__name__)
+esp32_data = {}
+
+@flask_app.route("/esp32_api", methods=["GET"])
+def get_data():
+    return jsonify(esp32_data)
+
+def run_flask():
+    flask_app.run(port=8502, debug=False, use_reloader=False)
+
+# Khởi động Flask server trong luồng song song
+flask_thread = Thread(target=run_flask)
+flask_thread.setDaemon(True)
+flask_thread.start()
+
+# =============== STREAMLIT APP ===============
 st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
 st_autorefresh(interval=3600 * 1000, key="refresh")
 
@@ -32,12 +51,12 @@ is_controller = False
 
 if user_type == "Người điều khiển":
     password = st.text_input("🔐 Nhập mật khẩu:", type="password")
-    if password == "123456hihi":  # <-- Bạn có thể thay đổi mật khẩu tại đây
+    if password == "123456hihi":
         st.success("✅ Đăng nhập thành công.")
         is_controller = True
     else:
         st.warning("❌ Sai mật khẩu hoặc chưa nhập.")
-        st.stop()  # Không cho người điều khiển sai mật khẩu tiếp tục
+        st.stop()
 
 # --- ĐỊA ĐIỂM ---
 locations = {
@@ -63,8 +82,8 @@ if is_controller:
     selected_crop = st.selectbox("🌱 Chọn loại nông sản:", list(crops.keys()))
     planting_date = st.date_input("📅 Ngày gieo trồng:")
 else:
-    selected_crop = "Ngô"  # Giá trị mặc định cho người giám sát
-    planting_date = date.today() - timedelta(days=10)  # Giả định đã trồng 10 ngày
+    selected_crop = "Ngô"
+    planting_date = date.today() - timedelta(days=10)
 
 min_days, max_days = crops[selected_crop]
 harvest_min = planting_date + timedelta(days=min_days)
@@ -136,13 +155,16 @@ if is_irrigating:
 else:
     st.info("⛅ Không tưới - độ ẩm đủ hoặc trời sắp mưa.")
 
-# --- JSON GIẢ LẬP CHO ESP32 ---
+# --- JSON CHO ESP32 ---
 st.subheader("🔁 Dữ liệu gửi về ESP32 (giả lập)")
-esp32_response = {
+esp32_data.update({
     "time": now.strftime('%H:%M:%S'),
     "irrigate": is_irrigating,
     "sensor_temp": sensor_temp,
-    "sensor_hum": sensor_hum
-}
-st.code(esp32_response, language='json')
-
+    "sensor_hum": sensor_hum,
+    "sensor_light": sensor_light,
+    "weather_temp": current_weather.get("temperature_2m", 0),
+    "weather_humidity": current_weather.get("relative_humidity_2m", 0),
+    "weather_rain_prob": current_weather.get("precipitation_probability", 0)
+})
+st.code(esp32_data, language='json')
