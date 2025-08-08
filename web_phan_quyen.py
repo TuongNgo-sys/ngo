@@ -193,6 +193,13 @@ esp32_response = {
     "sensor_hum": sensor_hum
 }
 st.code(esp32_response, language='json')
+# --- GHI CHÚ ---
+st.markdown("---")
+st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
+st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
+
+
 
 
 
