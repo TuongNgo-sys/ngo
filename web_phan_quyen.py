@@ -5,6 +5,7 @@ from PIL import Image
 import requests
 from streamlit_autorefresh import st_autorefresh
 
+# --- CẤU HÌNH ---
 st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
 st_autorefresh(interval=3600 * 1000, key="refresh")
 
@@ -18,16 +19,25 @@ with col1:
         st.warning("❌ Không tìm thấy logo.png")
 with col2:
     st.markdown("<h3 style='color: #004aad;'>Ho Chi Minh City University of Technology and Education</h3>", unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #004aad;'>Faculty of International Training</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #004aad;'>International Training Institute</h4>", unsafe_allow_html=True)
 
 st.markdown("<h2 style='text-align: center;'>🌾 Smart Agricultural Irrigation System 🌾</h2>", unsafe_allow_html=True)
 
 now = datetime.now()
 st.markdown(f"**⏰ Thời gian hiện tại:** `{now.strftime('%H:%M:%S - %d/%m/%Y')}`")
 
-# --- PHÂN QUYỀN NGƯỜI DÙNG ---
-user_type = st.radio("👤 Bạn là:", ["👨‍🌾 Người điều khiển", "👀 Người giám sát"])
-is_controller = user_type == "👨‍🌾 Người điều khiển"
+# --- NHÓM NGƯỜI DÙNG ---
+user_type = st.radio("👤 Bạn là:", ["Người giám sát", "Người điều khiển"])
+is_controller = False
+
+if user_type == "Người điều khiển":
+    password = st.text_input("🔐 Nhập mật khẩu:", type="password")
+    if password == "admin123":  # <-- Bạn có thể thay đổi mật khẩu tại đây
+        st.success("✅ Đăng nhập thành công.")
+        is_controller = True
+    else:
+        st.warning("❌ Sai mật khẩu hoặc chưa nhập.")
+        st.stop()  # Không cho người điều khiển sai mật khẩu tiếp tục
 
 # --- ĐỊA ĐIỂM ---
 locations = {
@@ -41,24 +51,21 @@ locations = {
 selected_city = st.selectbox("📍 Chọn địa điểm:", list(locations.keys()))
 latitude, longitude = locations[selected_city]
 
-# --- NÔNG SẢN ---
+# --- CHỈ NGƯỜI ĐIỀU KHIỂN ĐƯỢC PHÉP CHỌN NÔNG SẢN ---
 crops = {
-    "Ngô": (75, 100),
+    "Ngô": (75, 100), 
     "Chuối": (270, 365),
     "Rau cải": (30, 45),
-    "Ớt": (70, 90),
+    "Ớt": (70, 90), 
 }
 
-# CHỈ NGƯỜI ĐIỀU KHIỂN ĐƯỢC CHỌN CÂY VÀ NGÀY TRỒNG
 if is_controller:
     selected_crop = st.selectbox("🌱 Chọn loại nông sản:", list(crops.keys()))
     planting_date = st.date_input("📅 Ngày gieo trồng:")
 else:
-    selected_crop = "Ngô"
-    planting_date = date(2025, 7, 1)  # mặc định với người giám sát
-    st.info(f"🔒 Đang giám sát cây **{selected_crop}**, trồng từ ngày **{planting_date.strftime('%d/%m/%Y')}**")
+    selected_crop = "Ngô"  # Giá trị mặc định cho người giám sát
+    planting_date = date.today() - timedelta(days=10)  # Giả định đã trồng 10 ngày
 
-# --- TÍNH TOÁN THU HOẠCH ---
 min_days, max_days = crops[selected_crop]
 harvest_min = planting_date + timedelta(days=min_days)
 harvest_max = planting_date + timedelta(days=max_days)
@@ -129,7 +136,7 @@ if is_irrigating:
 else:
     st.info("⛅ Không tưới - độ ẩm đủ hoặc trời sắp mưa.")
 
-# --- KẾT QUẢ JSON ---
+# --- JSON GIẢ LẬP CHO ESP32 ---
 st.subheader("🔁 Dữ liệu gửi về ESP32 (giả lập)")
 esp32_response = {
     "time": now.strftime('%H:%M:%S'),
@@ -138,4 +145,3 @@ esp32_response = {
     "sensor_hum": sensor_hum
 }
 st.code(esp32_response, language='json')
-
