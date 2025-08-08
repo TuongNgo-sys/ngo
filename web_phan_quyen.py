@@ -39,8 +39,8 @@ with col2:
     st.markdown(
     """
     <style>
-    h3 {
-        color: #004aad;
+    h1 {
+        color: #0000FF;
         font-size: 24px;
         font-family: Arial, sans-serif;
         font-weight: bold;
@@ -49,10 +49,23 @@ with col2:
     """,
     unsafe_allow_html=True
 )
-    st.markdown("<h3>Ho Chi Minh City University of Technology and Education</h3>", unsafe_allow_html=True)
-    st.markdown("<h3>Faculty of International Training</h3>", unsafe_allow_html=True)
-
-st.markdown("<h2 style='text-align: center;'>🌾 Smart Agricultural Irrigation System 🌾</h2>", unsafe_allow_html=True)
+    st.markdown("<h1>Ho Chi Minh City University of Technology and Education</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>Faculty of International Training</h1>", unsafe_allow_html=True)
+    
+st.markdown(
+    """
+    <style>
+    h2 {
+        color: #004aad;
+        font-size: 30px;
+        font-family: Arial, sans-serif;
+        font-weight: bold;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+st.markdown("<h2>🌾 Smart Agricultural Irrigation System 🌾</h2>", unsafe_allow_html=True)
 
 now = datetime.now()
 st.markdown(f"**⏰ Thời gian hiện tại:** `{now.strftime('%d/%m/%Y')}`")
@@ -200,6 +213,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
