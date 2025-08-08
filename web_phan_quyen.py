@@ -13,9 +13,75 @@ st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
 st_autorefresh(interval=3600 * 1000, key="refresh")
 
 
-# --- CHỌN NGÔN NGỮ ---
-lang = st.sidebar.selectbox("🌐 Language / Ngôn ngữ", ["Tiếng Việt", "English"])
-vi = lang == "Tiếng Việt"
+# ------------------- ĐA NGÔN NGỮ -------------------
+LANG = {
+    "vi": {
+        "title": "🌾 Hệ thống tưới tiêu nông nghiệp thông minh 🌾",
+        "time_now": "⏰ Thời gian hiện tại:",
+        "role_title": "🔐 Chọn vai trò người dùng",
+        "roles": ["Người giám sát", "Người điều khiển"],
+        "password": "🔑 Nhập mật khẩu:",
+        "wrong_pass": "❌ Mật khẩu sai. Truy cập bị từ chối.",
+        "pass_ok": "✅ Xác thực thành công.",
+        "select_city": "📍 Chọn địa điểm:",
+        "select_crop": "🌱 Chọn loại nông sản:",
+        "planting_date": "📅 Ngày gieo trồng:",
+        "no_info": "📍 Chưa có thông tin gieo trồng tại khu vực này.",
+        "harvest": "🌾 Dự kiến thu hoạch từ",
+        "weather_now": "🌦️ Thời tiết hiện tại",
+        "sensor_data": "🧪 Dữ liệu cảm biến từ ESP32",
+        "compare": "🧠 So sánh dữ liệu cảm biến và thời tiết (theo khung giờ)",
+        "compare_ok": "✅ Cảm biến trùng khớp thời tiết trong khung giờ cho phép.",
+        "compare_warn": "⚠️ Sai lệch trong khung giờ:",
+        "compare_no": "⏱️ Hiện tại không trong khung giờ so sánh (04:00–06:00 hoặc 13:00–15:00).",
+        "growth_stage": "📈 Giai đoạn phát triển cây",
+        "days_planted": "📅 Đã trồng:",
+        "irrigation_decision": "🚰 Quyết định tưới nước",
+        "watering": "💦 ĐANG TƯỚI (ESP32 bật bơm)",
+        "no_watering": "⛅ Không tưới - độ ẩm đủ hoặc trời sắp mưa.",
+        "esp32_data": "🔁 Dữ liệu gửi về ESP32 (giả lập)"
+    },
+    "en": {
+        "title": "🌾 Smart Agricultural Irrigation System 🌾",
+        "time_now": "⏰ Current time:",
+        "role_title": "🔐 Select user role",
+        "roles": ["Supervisor", "Controller"],
+        "password": "🔑 Enter password:",
+        "wrong_pass": "❌ Wrong password. Access denied.",
+        "pass_ok": "✅ Authentication successful.",
+        "select_city": "📍 Select location:",
+        "select_crop": "🌱 Select crop:",
+        "planting_date": "📅 Planting date:",
+        "no_info": "📍 No planting information for this area.",
+        "harvest": "🌾 Expected harvest from",
+        "weather_now": "🌦️ Current weather",
+        "sensor_data": "🧪 Sensor data from ESP32",
+        "compare": "🧠 Compare sensor and weather data (time-restricted)",
+        "compare_ok": "✅ Sensor matches weather data in allowed time frame.",
+        "compare_warn": "⚠️ Difference in time frame:",
+        "compare_no": "⏱️ Not in comparison time (04:00–06:00 or 13:00–15:00).",
+        "growth_stage": "📈 Plant growth stage",
+        "days_planted": "📅 Days since planting:",
+        "irrigation_decision": "🚰 Irrigation decision",
+        "watering": "💦 IRRIGATING (ESP32 pump ON)",
+        "no_watering": "⛅ No irrigation - soil moisture sufficient or rain expected.",
+        "esp32_data": "🔁 Data sent to ESP32 (simulation)"
+    }
+}
+
+# ------------------- SESSION STATE -------------------
+if "lang" not in st.session_state:
+    st.session_state["lang"] = "vi"
+if "user_type" not in st.session_state:
+    st.session_state["user_type"] = LANG[st.session_state["lang"]]["roles"][0]
+
+# ------------------- CHỌN NGÔN NGỮ -------------------
+lang_choice = st.sidebar.selectbox("🌐 Language / Ngôn ngữ",
+                                   options=["vi", "en"],
+                                   format_func=lambda x: "Tiếng Việt" if x == "vi" else "English",
+                                   index=["vi", "en"].index(st.session_state["lang"]))
+st.session_state["lang"] = lang_choice
+T = LANG[st.session_state["lang"]]  # shortcut
 
 
 # --- HÀM DỊCH ---
@@ -354,6 +420,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
