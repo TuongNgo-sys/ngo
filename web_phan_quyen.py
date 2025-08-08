@@ -18,7 +18,7 @@ with col1:
         st.warning("❌ Không tìm thấy logo.png")
 with col2:
     st.markdown("<h3 style='color: #004aad;'>Ho Chi Minh City University of Technology and Education</h3>", unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #004aad;'>International Training Institute</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #004aad;'>Faculty of International Training</h4>", unsafe_allow_html=True)
 
 st.markdown("<h2 style='text-align: center;'>🌾 Smart Agricultural Irrigation System 🌾</h2>", unsafe_allow_html=True)
 
@@ -138,3 +138,4 @@ esp32_response = {
     "sensor_hum": sensor_hum
 }
 st.code(esp32_response, language='json')
+
