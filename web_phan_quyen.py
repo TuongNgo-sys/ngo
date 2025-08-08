@@ -42,7 +42,7 @@ with col2:
 st.markdown("<h2 style='text-align: center;'>🌾 Smart Agricultural Irrigation System 🌾</h2>", unsafe_allow_html=True)
 
 now = datetime.now()
-st.markdown(f"**⏰ Thời gian hiện tại:** `{now.strftime('%H:%M:%S - %d/%m/%Y')}`")
+st.markdown(f"**⏰ Thời gian hiện tại:** `{now.strftime('%d/%m/%Y')}`")
 
 # --- PHÂN QUYỀN ---
 st.sidebar.title("🔐 Chọn vai trò người dùng")
@@ -176,3 +176,4 @@ esp32_response = {
     "sensor_hum": sensor_hum
 }
 st.code(esp32_response, language='json')
+
