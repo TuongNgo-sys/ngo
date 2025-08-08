@@ -36,61 +36,34 @@ with col1:
     except:
         st.warning("❌ Không tìm thấy logo.png")
 with col2:
-    st.markdown(
-    """
-    <style>
-    h1 {
-        color: #0000FF !important;
-        font-size: 25px !important;
-        font-family: Arial, sans-serif !important;
-        font-weight: bold !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-    st.markdown("<h1>Ho Chi Minh City University of Technology and Education</h1>", unsafe_allow_html=True)
-    st.markdown("<h1>Faculty of International Training</h1>", unsafe_allow_html=True)
-    
-st.markdown(
-    """
-    <style>
-    h2 {
-        color: #004aad !important;
-        font-size: 30px !important;
-        font-family: Arial, sans-serif !important;
-        font-weight: bold !important;
-        text-align: center !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-st.markdown("<h2>🌾 Smart Agricultural Irrigation System 🌾</h2>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color: #004aad;'>Ho Chi Minh City University of Technology and Education</h3>", unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #004aad;'>International Training Institute</h4>", unsafe_allow_html=True)
+
+st.markdown("<h2 style='text-align: center;'>🌾 Smart Agricultural Irrigation System 🌾</h2>", unsafe_allow_html=True)
 
 now = datetime.now()
-st.markdown(f"**⏰ Real time:** `{now.strftime('%d/%m/%Y')}`")
+st.markdown(f"**⏰ Thời gian hiện tại:** {now.strftime('%d/%m/%Y')}")
 
 # --- PHÂN QUYỀN ---
-st.sidebar.title("🔐 Choose your role")
-user_type = st.sidebar.radio("You are:", [" Monitoring Officer", "Control Administrator"])
+st.sidebar.title("🔐 Chọn vai trò người dùng")
+user_type = st.sidebar.radio("Bạn là:", ["Người giám sát", "Người điều khiển"])
 
-if user_type == "Control Administrator":
-    password = st.sidebar.text_input("🔑 Please enter your password:", type="password")
+if user_type == "Người điều khiển":
+    password = st.sidebar.text_input("🔑 Nhập mật khẩu:", type="password")
     if password != "admin123":
-        st.sidebar.error("❌ The password you entered is incorrect. Access has been denied.")
+        st.sidebar.error("❌ Mật khẩu sai. Truy cập bị từ chối.")
         st.stop()
     else:
-        st.sidebar.success("✅ You have successfully gained access.")
+        st.sidebar.success("✅ Xác thực thành công.")
 
 # --- ĐỊA ĐIỂM ---
 locations = {
-    "Ho Chi Minh City": (10.762622, 106.660172),
-    "Ha Noi Capital": (21.028511, 105.804817),
-    "Can Tho": (10.045161, 105.746857),
-    "Da Nang": (16.054407, 108.202167),
-    "Binh Duong": (11.3254, 106.4770),
-    "Dong Nai": (10.9453, 106.8133),
+    "TP. Hồ Chí Minh": (10.762622, 106.660172),
+    "Hà Nội": (21.028511, 105.804817),
+    "Cần Thơ": (10.045161, 105.746857),
+    "Đà Nẵng": (16.054407, 108.202167),
+    "Bình Dương": (11.3254, 106.4770),
+    "Đồng Nai": (10.9453, 106.8133),
 }
 selected_city = st.selectbox("📍 Chọn địa điểm:", list(locations.keys()))
 latitude, longitude = locations[selected_city]
@@ -102,9 +75,11 @@ crops = {
     "Rau cải": (30, 45),
     "Ớt": (70, 90), 
 }
-if user_type == "Monitoring Officer":
+
+if user_type == "Người điều khiển":
     selected_crop = st.selectbox("🌱 Chọn loại nông sản:", list(crops.keys()))
     planting_date = st.date_input("📅 Ngày gieo trồng:")
+
     # Lưu thông tin vào crop_data
     crop_data[selected_city] = {
         "crop": selected_crop,
@@ -112,7 +87,7 @@ if user_type == "Monitoring Officer":
     }
     save_crop_data(crop_data)
 
-elif user_type == "Monitoring Officer":
+elif user_type == "Người giám sát":
     if selected_city in crop_data:
         selected_crop = crop_data[selected_city]["crop"]
         planting_date = date.fromisoformat(crop_data[selected_city]["planting_date"])
@@ -208,28 +183,3 @@ esp32_response = {
     "sensor_hum": sensor_hum
 }
 st.code(esp32_response, language='json')
-
-st.markdown("---")
-st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
-st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
