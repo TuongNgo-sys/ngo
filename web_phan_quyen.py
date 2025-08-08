@@ -184,5 +184,9 @@ esp32_response = {
 }
 st.code(esp32_response, language='json')
 
+st.markdown("---")
+st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
+
+
 
 
