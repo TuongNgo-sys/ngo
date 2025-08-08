@@ -48,7 +48,9 @@ with col2:
 
 st.markdown(f"<h2 style='text-align: center;'>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
 
-now = datetime.now()
+# Thiết lập múi giờ Việt Nam
+vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
+now = datetime.now(vn_tz)
 st.markdown(f"**⏰ { _('Thời gian hiện tại', 'Current time') }:** {now.strftime('%d/%m/%Y')}")
 
 # --- PHÂN QUYỀN ---
@@ -189,4 +191,5 @@ esp32_response = {
     "sensor_hum": sensor_hum
 }
 st.code(esp32_response, language='json')
+
 
