@@ -1,0 +1,125 @@
+import streamlit as st
+import requests
+import pandas as pd
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+
+# ===============================
+# Hàm lấy dữ liệu thời tiết thực tế từ Open-Meteo
+# ===============================
+def get_weather():
+    try:
+        url = "https://api.open-meteo.com/v1/forecast"
+        params = {
+            "latitude": 10.8486,
+            "longitude": 106.7903,
+            "hourly": "temperature_2m,relative_humidity_2m,precipitation_probability,cloudcover",
+            "current": "temperature_2m,relative_humidity_2m,precipitation,cloudcover",
+            "daily": "rain_sum,precipitation_probability_max",
+            "timezone": "Asia/Bangkok"
+        }
+        res = requests.get(url, params=params)
+        res.raise_for_status()
+        data = res.json()
+
+        current = data.get("current", {})
+        daily = data.get("daily", {})
+
+        return {
+            "temperature": current.get("temperature_2m"),
+            "humidity": current.get("relative_humidity_2m"),
+            "cloud": current.get("cloudcover"),
+            "rain_chance": daily.get("precipitation_probability_max", [0])[0],
+            "rain_amount": daily.get("rain_sum", [0])[0],
+        }
+    except:
+        return None
+
+# ===============================
+# Hàm so sánh dữ liệu cảm biến với thời tiết
+# ===============================
+def compare_data(sensor, weather):
+    if not weather:
+        return {"Lỗi": "Không có dữ liệu thời tiết để so sánh."}
+    diff_temp = sensor['temp'] - weather['temperature']
+    diff_humidity = sensor['humidity'] - weather['humidity']
+    diff_light = sensor['light'] - (100 - weather['cloud'])
+
+    return {
+        "🌡️ Nhiệt độ chênh lệch (°C)": round(diff_temp, 1),
+        "💧 Độ ẩm chênh lệch (%)": round(diff_humidity, 1),
+        "🔆 Ánh sáng chênh lệch (%)": round(diff_light, 1),
+    }
+
+# ===============================
+# Hàm ước lượng ngày thu hoạch
+# ===============================
+def estimate_harvest(crop, plant_date):
+    if not crop or not plant_date:
+        return ""
+    crop = crop.lower()
+    if "lúa" in crop:
+        days = 100
+    elif "rau" in crop:
+        days = 30
+    elif "bắp" in crop or "ngô" in crop:
+        days = 90
+    elif "chuối" in crop:
+        days = 300
+    else:
+        days = 60  # mặc định
+    harvest_date = plant_date + timedelta(days=days)
+    return harvest_date.strftime("%d/%m/%Y")
+
+# ===============================
+# Giao diện chính Streamlit
+# ===============================
+st.set_page_config(page_title="Hệ thống tưới tiêu thông minh", layout="centered")
+
+st.title("🌱 HỆ THỐNG TƯỚI TIÊU THÔNG MINH")
+st.caption(f"⏰ Thời gian hiện tại: {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
+
+# Phần 1: Dữ liệu thời tiết
+st.header("1️⃣ Dữ liệu thời tiết thực tế (API Open-Meteo)")
+weather = get_weather()
+
+if weather:
+    st.success("✅ Dữ liệu thời tiết cập nhật thành công")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("🌡️ Nhiệt độ", f"{weather['temperature']} °C")
+        st.metric("☁️ Mây che", f"{weather['cloud']} %")
+        st.metric("💧 Độ ẩm", f"{weather['humidity']} %")
+    with col2:
+        st.metric("🌧️ Xác suất mưa", f"{weather['rain_chance']} %")
+        st.metric("📏 Lượng mưa dự báo", f"{weather['rain_amount']} mm")
+else:
+    st.error("⚠️ Không thể lấy dữ liệu thời tiết. Vui lòng kiểm tra kết nối mạng hoặc API.")
+
+# Phần 2: Nhập dữ liệu cảm biến
+st.header("2️⃣ Dữ liệu cảm biến tại vườn")
+sensor = {
+    'temp': st.number_input("🌡️ Nhiệt độ đo được (°C)", value=0.0),
+    'humidity': st.number_input("💧 Độ ẩm đo được (%)", value=0.0),
+    'light': st.number_input("🔆 Ánh sáng đo được (%)", value=0.0),
+}
+
+# Phần 3: So sánh dữ liệu
+st.header("3️⃣ So sánh dữ liệu thực tế và cảm biến")
+if st.button("📊 Thực hiện so sánh"):
+    result = compare_data(sensor, weather)
+    st.subheader("📈 Kết quả chênh lệch:")
+    for key, value in result.items():
+        st.write(f"- {key}: **{value}**")
+
+# Phần 4: Ước lượng ngày thu hoạch
+st.header("4️⃣ Ước lượng ngày thu hoạch")
+crop = st.text_input("🌾 Nhập loại cây trồng (VD: lúa, rau, bắp,...)")
+plant_date = st.date_input("📅 Ngày gieo trồng")
+
+if st.button("📅 Tính ngày thu hoạch"):
+    result = estimate_harvest(crop, plant_date)
+    if result:
+        st.success(f"🌟 Dự kiến thu hoạch vào ngày: **{result}**")
+    else:
+        st.warning("⚠️ Vui lòng nhập đầy đủ thông tin.")
