@@ -9,13 +9,14 @@ import os
 from streamlit_autorefresh import st_autorefresh
 import pytz
 import pandas as pd
-
 st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
 st_autorefresh(interval=3600 * 1000, key="refresh")
+
 
 # --- CHỌN NGÔN NGỮ ---
 lang = st.sidebar.selectbox("🌐 Language / Ngôn ngữ", ["Tiếng Việt", "English"])
 vi = lang == "Tiếng Việt"
+
 
 # --- HÀM DỊCH ---
 def _(vi_text, en_text):
@@ -36,6 +37,7 @@ def save_crop_data(data):
 
 crop_data = load_crop_data()
 
+
 # --- LOGO ---
 try:
     st.markdown(
@@ -53,7 +55,6 @@ except:
     st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))
 
 st.markdown(f"<h2 style='text-align: center; font-size: 50px;'>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
-
 # Thiết lập múi giờ Việt Nam
 vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
 now = datetime.now(vn_tz)
@@ -73,6 +74,7 @@ st.markdown(
 )
 st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }:{now.strftime('%d/%m/%Y')}</h3>", unsafe_allow_html=True)
 
+
 # --- PHÂN QUYỀN ---
 st.sidebar.title(_("🔐 Chọn vai trò người dùng", "🔐 Select User Role"))
 user_type = st.sidebar.radio(_("Bạn là:", "You are:"), [_("Người giám sát", " Monitoring Officer"), _("Người điều khiển", "Control Administrator")])
@@ -84,6 +86,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         st.stop()
     else:
         st.sidebar.success(_("✅ Xác thực thành công.", "✅ Authentication successful."))
+
 
 # --- ĐỊA ĐIỂM ---
 locations = {
@@ -139,18 +142,15 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     # Hiển thị danh sách cây trồng theo ngôn ngữ
     crop_display_names = [crop_names[k] for k in crops.keys()]
     selected_crop_display = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), crop_display_names)
-
 # Chuyển tên hiển thị → key gốc ("Ngô", "Chuối", ...)
     selected_crop = next(k for k, v in crop_names.items() if v == selected_crop_display)
     planting_date = st.date_input(_("📅 Ngày gieo trồng:", "📅 Planting date:"))
-
     # Hiển thị độ ẩm đất yêu cầu
     if selected_crop in required_soil_moisture:
         st.markdown(
             f"🌱 **{_('Độ ẩm đất cần thiết cho', 'Required soil moisture for')} {selected_crop}**: "
             f"**{required_soil_moisture[selected_crop]}%**"
         )
-
     crop_data[selected_city] = {
         "crop": selected_crop,
         "planting_date": planting_date.isoformat()
@@ -172,6 +172,7 @@ elif user_type == _("Người giám sát", " Monitoring Officer"):
         st.warning(_("📍 Chưa có thông tin gieo trồng tại khu vực này.", "📍 No crop information available in this location."))
         st.stop()
 
+
 # --- DỰ ĐOÁN THU HOẠCH ---
 min_days, max_days = crops[selected_crop]
 harvest_min = planting_date + timedelta(days=min_days)
@@ -181,7 +182,6 @@ st.success(f"🌾 { _('Dự kiến thu hoạch từ', 'Expected harvest from') }
 
 # --- API THỜI TIẾT ---
 weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability&timezone=auto"
-
 try:
     response = requests.get(weather_url, timeout=10)
     response.raise_for_status()  # Gây lỗi nếu mã không phải 200
@@ -195,12 +195,12 @@ except Exception as e:
         "precipitation": "N/A",
         "precipitation_probability": "N/A"
     }
-
 st.subheader(_("🌦️ Thời tiết hiện tại", "🌦️ Current Weather"))
 col1, col2, col3 = st.columns(3)
 col1.metric("🌡️ " + _("Nhiệt độ", "Temperature"), f"{current_weather.get('temperature_2m', 'N/A')} °C")
 col2.metric("💧 " + _("Độ ẩm", "Humidity"), f"{current_weather.get('relative_humidity_2m', 'N/A')} %")
 col3.metric("🌧️ " + _("Mưa", "Rain"), f"{current_weather.get('precipitation', 'N/A')} mm")
+
 
 # --- GIẢ LẬP CẢM BIẾN ---
 st.subheader(_("🧪 Dữ liệu cảm biến từ ESP32", "🧪 Sensor Data from ESP32"))
@@ -211,6 +211,7 @@ sensor_light = round(random.uniform(300, 1000), 1)
 st.write(f"🌡️ { _('Nhiệt độ cảm biến', 'Sensor temperature') }: **{sensor_temp} °C**")
 st.write(f"💧 { _('Độ ẩm đất cảm biến', 'Soil moisture') }: **{sensor_hum} %**")
 st.write(f"☀️ { _('Cường độ ánh sáng', 'Light intensity') }: **{sensor_light} lux**")
+
 
 # --- SO SÁNH ---
 st.subheader(_("🧠 So sánh dữ liệu cảm biến và thời tiết (theo khung giờ)", "🧠 Time-Based Comparison of Sensor and Weather Data"))
@@ -228,6 +229,7 @@ if in_compare_time:
 else:
     st.info(_("⏱️ Hiện tại không trong khung giờ so sánh (04:00–06:00 hoặc 13:00–15:00).",
               "⏱️ Outside comparison time window (04:00–06:00 or 13:00–15:00)."))
+
 
 # --- GIAI ĐOẠN CÂY ---
 st.subheader(_("📈 Giai đoạn phát triển cây", "📈 Plant Growth Stage"))
@@ -255,21 +257,57 @@ def giai_doan_cay(crop, days):
 st.info(f"📅 { _('Đã trồng', 'Planted for') }: **{days_since} { _('ngày', 'days') }**\n\n"
          f"🌿 { _('Loại cây', 'Crop type') }: **{crop_names[selected_crop]}**\n\n"
          f"🔍 {giai_doan_cay(selected_crop, days_since)}")
+
+
 # --- TƯỚI NƯỚC ---
 st.subheader(_("🚰 Quyết định tưới nước", "🚰 Irrigation Decision"))
 
 is_irrigating = False
 irrigation_reason = ""
-
+# Ghi nhận thời gian bắt đầu nếu quyết định tưới
+start_wait_time = st.session_state.get("start_wait_time", None)
+decision_made = st.session_state.get("decision_made", False)
+auto_irrigate = False
 if in_compare_time:
     threshold = required_soil_moisture.get(selected_crop, 60)
     if sensor_hum < threshold:
-        is_irrigating = True
         irrigation_reason = _("💧 Độ ẩm thấp hơn mức yêu cầu", "💧 Moisture below required level")
-        st.success(f"💦 { _('ĐANG TƯỚI (ESP32 bật bơm)', 'IRRIGATING (ESP32 pump ON)') }")
-        st.info(f"📉 { _('Lý do', 'Reason') }: {irrigation_reason} ({sensor_hum:.1f}% < {threshold}%)")
+        if user_type == _("Người điều khiển", "Control Administrator"):
+            # Ghi thời gian bắt đầu nếu chưa có
+            if not start_wait_time:
+                st.session_state["start_wait_time"] = now
+                start_wait_time = now
+                st.session_state["decision_made"] = False
+
+            elapsed = (now - start_wait_time).total_seconds() / 60  # minutes
+
+            st.warning(f"💧 { _('Cần tưới nước', 'Irrigation needed') } - { _('Lý do', 'Reason') }: {irrigation_reason}")
+            st.info(f"⏳ { _('Thời gian chờ quyết định', 'Time waiting for decision') }: {elapsed:.1f} phút")
+
+            if not decision_made and elapsed < 5:
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button(_("✅ Đồng ý bật bơm", "✅ Agree to turn on pump")):
+                        st.session_state["decision_made"] = True
+                        is_irrigating = True
+                        st.success(_("💦 ĐÃ BẬT BƠM (theo người điều khiển)", "💦 PUMP TURNED ON (by controller)"))
+                with col2:
+                    if st.button(_("❌ Không đồng ý tưới", "❌ Reject irrigation")):
+                        st.session_state["decision_made"] = True
+                        is_irrigating = False
+                        st.info(_("🚫 Lệnh tưới bị hủy", "🚫 Irrigation cancelled"))
+            elif not decision_made and elapsed >= 5:
+                is_irrigating = True
+                auto_irrigate = True
+                st.success(_("🕔 Sau 5 phút không có quyết định – TỰ ĐỘNG BẬT BƠM", "🕔 No decision after 5 mins – AUTO PUMP ON"))
+        else:
+            is_irrigating = True
+            st.success(_("💦 Tự động tưới do độ ẩm thấp", "💦 Auto irrigation due to low moisture"))
     else:
         st.info(f"✅ { _('Không tưới - độ ẩm đủ', 'No irrigation - soil moisture sufficient') } ({sensor_hum:.1f}% ≥ {threshold}%)")
+        # Reset nếu không cần tưới
+        st.session_state["start_wait_time"] = None
+        st.session_state["decision_made"] = False
 else:
     st.info(_("⏱️ Không trong khung giờ tưới (04:00–06:00 hoặc 13:00–15:00)", "⏱️ Not in irrigation time window (04:00–06:00 or 13:00–15:00)"))
 
@@ -278,22 +316,24 @@ st.subheader(_("🔁 Dữ liệu gửi về ESP32 (giả lập)", "🔁 Data sen
 esp32_response = {
     "time": now.strftime('%H:%M:%S'),
     "irrigate": is_irrigating,
+    "auto": auto_irrigate,
     "sensor_temp": sensor_temp,
-    "sensor_hum": sensor_hum
+    "sensor_hum": sensor_hum,
+    "reason": irrigation_reason if is_irrigating else "No irrigation"
 }
 st.code(esp32_response, language='json')
+
+
 # --- LỊCH SỬ GỬI DỮ LIỆU ---
 st.subheader(_("🕘 Lịch sử dữ liệu gửi về ESP32", "🕘 Data History sent to ESP32"))
 
 HISTORY_FILE = "history_irrigation.json"
-
 # Load lịch sử
 if os.path.exists(HISTORY_FILE):
     with open(HISTORY_FILE, "r") as f:
         history_data = json.load(f)
 else:
     history_data = []
-
 # Lưu bản ghi hiện tại
 history_data.append(esp32_response)
 with open(HISTORY_FILE, "w") as f:
@@ -301,16 +341,13 @@ with open(HISTORY_FILE, "w") as f:
 
 # Hiển thị bảng lịch sử chỉ trong khung giờ so sánh
 import pandas as pd
-
 def in_time_window(t):
     try:
-        hour = int(t.split(":")[0])
-        return (4 <= hour < 6) or (13 <= hour < 15)
+        hour, minute = map(int, t.split(":")[:2])
+        return ((4 <= hour < 6) or (13 <= hour < 15)) and (minute % 10 == 0)
     except:
         return False
-
 filtered_data = list(filter(lambda d: in_time_window(d["time"]), history_data))
-
 if filtered_data:
     df_history = pd.DataFrame(filtered_data)
     df_history = df_history.sort_values(by="time", ascending=False).head(10)
@@ -322,6 +359,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
