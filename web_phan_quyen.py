@@ -7,6 +7,7 @@ import requests
 import json
 import os
 from streamlit_autorefresh import st_autorefresh
+import pytz
 
 st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
 st_autorefresh(interval=3600 * 1000, key="refresh")
@@ -192,6 +193,7 @@ esp32_response = {
     "sensor_hum": sensor_hum
 }
 st.code(esp32_response, language='json')
+
 
 
 
