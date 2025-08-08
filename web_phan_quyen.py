@@ -51,9 +51,9 @@ try:
 )
 
 # Hiển thị ảnh
-image = Image.open("logo1.png")
-image = image.resize((1000, 200))  # Resize tùy ý
-st.image(image)
+     image = Image.open("logo1.png")
+     image = image.resize((1000, 200))  # Resize tùy ý
+     st.image(image)
 
 except:
     st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))
@@ -221,6 +221,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
