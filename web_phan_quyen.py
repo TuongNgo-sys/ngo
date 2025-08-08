@@ -252,11 +252,10 @@ def giai_doan_cay(crop, days):
         if days <= 20: return _("🌱 Mới trồng", "🌱 Newly planted")
         elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
         else: return _("🌶️ Trước thu hoạch", "🌶️ Pre-harvest")
-
 #st.info(f"📅 { _('Đã trồng', 'Planted for') }: **{days_since} { _('ngày', 'days') }**\n\n🔍 {giai_doan_cay(selected_crop, days_since)}")
 st.info(f"📅 { _('Đã trồng', 'Planted for') }: **{days_since} { _('ngày', 'days') }**\n\n"
          f"🌿 { _('Loại cây', 'Crop type') }: **{crop_names[selected_crop]}**\n\n"
-         f"🔍 {giai_doan_cay(selected_crop, days_since)}")
+         f"🔍 {giai_doan_cay(crop_names[selected_crop], days_since)}")
 
 
 # --- TƯỚI NƯỚC ---
@@ -359,6 +358,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
