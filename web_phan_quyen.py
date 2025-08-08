@@ -41,7 +41,7 @@ with col2:
     <style>
     h1 {
         color: #0000FF;
-        font-size: 10px;
+        font-size: 1px;
         font-family: Arial, sans-serif;
         font-weight: bold;
     }
@@ -214,6 +214,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
