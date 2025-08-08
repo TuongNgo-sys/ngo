@@ -38,14 +38,22 @@ crop_data = load_crop_data()
 # --- LOGO ---
 try:
         #st.image(Image.open("logo1.png"), width=1200)
+    # CSS để đưa ảnh sát đỉnh
     st.markdown(
     """
-    <div style="text-align: center; padding-top: 0px;">
-        <img src="logo1.png" width="1200" height="500">
-    </div>
+    <style>
+    .block-container {
+        padding-top: 1rem;
+    }
+    </style>
     """,
     unsafe_allow_html=True
 )
+
+# Hiển thị ảnh
+image = Image.open("logo1.png")
+image = image.resize((1000, 200))  # Resize tùy ý
+st.image(image)
 
 except:
     st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))
@@ -213,6 +221,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
