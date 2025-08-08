@@ -8,6 +8,7 @@ import json
 import os
 from streamlit_autorefresh import st_autorefresh
 import pytz
+import pandas as pd
 
 st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
 st_autorefresh(interval=3600 * 1000, key="refresh")
@@ -210,10 +211,38 @@ esp32_response = {
     "sensor_hum": sensor_hum
 }
 st.code(esp32_response, language='json')
+# --- LỊCH SỬ GỬI DỮ LIỆU ---
+st.subheader(_("🕘 Lịch sử dữ liệu gửi về ESP32", "🕘 Data History sent to ESP32"))
+
+HISTORY_FILE = "history_irrigation.json"
+
+# Load lịch sử
+if os.path.exists(HISTORY_FILE):
+    with open(HISTORY_FILE, "r") as f:
+        history_data = json.load(f)
+else:
+    history_data = []
+
+# Lưu bản ghi hiện tại
+history_data.append(esp32_response)
+with open(HISTORY_FILE, "w") as f:
+    json.dump(history_data, f, ensure_ascii=False, indent=2)
+
+# Hiển thị bảng lịch sử gần nhất
+import pandas as pd
+
+if history_data:
+    df_history = pd.DataFrame(history_data)
+    df_history = df_history.sort_values(by="time", ascending=False).head(10)  # chỉ hiển thị 10 bản ghi mới nhất
+    st.dataframe(df_history)
+else:
+    st.info(_("Chưa có dữ liệu lịch sử.", "No history data available."))
+
 # --- GHI CHÚ ---
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
