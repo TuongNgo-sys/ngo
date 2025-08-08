@@ -11,20 +11,11 @@ import pytz
 import pandas as pd
 st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
 st_autorefresh(interval=3600 * 1000, key="refresh")
-# Khi đổi ngôn ngữ
-if 'language' not in st.session_state:
-    st.session_state['language'] = 'vi'  # mặc định tiếng Việt
 
-selected_language = st.selectbox(
-    "Chọn ngôn ngữ / Select language",
-    options=["vi", "en"],
-    index=0 if st.session_state['language'] == 'vi' else 1
-)
 
-# Cập nhật ngôn ngữ mà không reset session đăng nhập
-if selected_language != st.session_state['language']:
-    st.session_state['language'] = selected_language
-    # KHÔNG xóa st.session_state hay reset trạng thái đăng nhập ở đây
+#--- CHỌN NGÔN NGỮ ---
+lang = st.sidebar.selectbox("🌐 Language / Ngôn ngữ", ["Tiếng Việt", "English"])
+vi = lang == "English"
 
 
 # --- HÀM DỊCH ---
@@ -363,6 +354,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
