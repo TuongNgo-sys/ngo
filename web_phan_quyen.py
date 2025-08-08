@@ -53,9 +53,9 @@ st.markdown(f"**⏰ { _('Thời gian hiện tại', 'Current time') }:** {now.st
 
 # --- PHÂN QUYỀN ---
 st.sidebar.title(_("🔐 Chọn vai trò người dùng", "🔐 Select User Role"))
-user_type = st.sidebar.radio(_("Bạn là:", "You are:"), [_("Người giám sát", "Supervisor"), _("Người điều khiển", "Controller")])
+user_type = st.sidebar.radio(_("Bạn là:", "You are:"), [_("Người giám sát", " Monitoring Officer"), _("Người điều khiển", "Control Administrator")])
 
-if user_type == _("Người điều khiển", "Controller"):
+if user_type == _("Người điều khiển", "Control Administrator"):
     password = st.sidebar.text_input(_("🔑 Nhập mật khẩu:", "🔑 Enter password:"), type="password")
     if password != "admin123":
         st.sidebar.error(_("❌ Mật khẩu sai. Truy cập bị từ chối.", "❌ Incorrect password. Access denied."))
@@ -83,7 +83,7 @@ crops = {
     "Ớt": (70, 90), 
 }
 
-if user_type == _("Người điều khiển", "Controller"):
+if user_type == _("Người điều khiển", "Control Administrator"):
     selected_crop = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), list(crops.keys()))
     planting_date = st.date_input(_("📅 Ngày gieo trồng:", "📅 Planting date:"))
 
@@ -93,7 +93,7 @@ if user_type == _("Người điều khiển", "Controller"):
     }
     save_crop_data(crop_data)
 
-elif user_type == _("Người giám sát", "Supervisor"):
+elif user_type == _("Người giám sát", " Monitoring Officer"):
     if selected_city in crop_data:
         selected_crop = crop_data[selected_city]["crop"]
         planting_date = date.fromisoformat(crop_data[selected_city]["planting_date"])
@@ -189,3 +189,4 @@ esp32_response = {
     "sensor_hum": sensor_hum
 }
 st.code(esp32_response, language='json')
+
