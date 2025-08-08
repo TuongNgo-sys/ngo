@@ -111,8 +111,22 @@ required_soil_moisture = {
     "Rau cải": 60,
     "Ớt": 65
 }
+# Tên cây trồng song ngữ
+crop_names = {
+    "Ngô": _("Ngô", "Corn"),
+    "Chuối": _("Chuối", "Banana"),
+    "Rau cải": _("Rau cải", "Mustard greens"),
+    "Ớt": _("Ớt", "Chili pepper")
+}
+
 if user_type == _("Người điều khiển", "Control Administrator"):
-    selected_crop = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), list(crops.keys()))
+    #selected_crop = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), list(crops.keys()))
+    # Hiển thị danh sách cây trồng theo ngôn ngữ
+    crop_display_names = [crop_names[k] for k in crops.keys()]
+    selected_crop_display = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), crop_display_names)
+
+# Chuyển tên hiển thị → key gốc ("Ngô", "Chuối", ...)
+    selected_crop = next(k for k, v in crop_names.items() if v == selected_crop_display)
     planting_date = st.date_input(_("📅 Ngày gieo trồng:", "📅 Planting date:"))
 
     # Hiển thị độ ẩm đất yêu cầu
@@ -131,7 +145,8 @@ elif user_type == _("Người giám sát", " Monitoring Officer"):
     if selected_city in crop_data:
         selected_crop = crop_data[selected_city]["crop"]
         planting_date = date.fromisoformat(crop_data[selected_city]["planting_date"])
-        st.success(f"📍 { _('Đang trồng', 'Currently growing') }: **{selected_crop}** - **{selected_city}** - { _('từ ngày', 'since') } **{planting_date.strftime('%d/%m/%Y')}**")
+        #st.success(f"📍 { _('Đang trồng', 'Currently growing') }: **{selected_crop}** - **{selected_city}** - { _('từ ngày', 'since') } **{planting_date.strftime('%d/%m/%Y')}**")
+        st.success(f"📍 { _('Đang trồng', 'Currently growing') }: **{crop_names[selected_crop]}** - **{selected_city}** - { _('từ ngày', 'since') } **{planting_date.strftime('%d/%m/%Y')}**")
         # Hiển thị độ ẩm đất yêu cầu theo loại cây
         if selected_crop in required_soil_moisture:
             st.markdown(
@@ -221,8 +236,10 @@ def giai_doan_cay(crop, days):
         elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
         else: return _("🌶️ Trước thu hoạch", "🌶️ Pre-harvest")
 
-st.info(f"📅 { _('Đã trồng', 'Planted for') }: **{days_since} { _('ngày', 'days') }**\n\n🔍 {giai_doan_cay(selected_crop, days_since)}")
-
+#st.info(f"📅 { _('Đã trồng', 'Planted for') }: **{days_since} { _('ngày', 'days') }**\n\n🔍 {giai_doan_cay(selected_crop, days_since)}")
+st.info(f"📅 { _('Đã trồng', 'Planted for') }: **{days_since} { _('ngày', 'days') }**\n\n"
+         f"🌿 { _('Loại cây', 'Crop type') }: **{crop_names[selected_crop]}**\n\n"
+         f"🔍 {giai_doan_cay(selected_crop, days_since)}")
 # --- TƯỚI NƯỚC ---
 st.subheader(_("🚰 Quyết định tưới nước", "🚰 Irrigation Decision"))
 
@@ -290,6 +307,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
