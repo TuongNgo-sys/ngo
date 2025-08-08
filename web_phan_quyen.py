@@ -213,7 +213,7 @@ st.write(f"💧 { _('Độ ẩm đất cảm biến', 'Soil moisture') }: **{sen
 st.write(f"☀️ { _('Cường độ ánh sáng', 'Light intensity') }: **{sensor_light} lux**")
 
 # --- SO SÁNH ---
-st.subheader(_("🧠 So sánh dữ liệu cảm biến và thời tiết (theo khung giờ)", "🧠 Sensor vs Weather Data (by time window)"))
+st.subheader(_("🧠 So sánh dữ liệu cảm biến và thời tiết (theo khung giờ)", "🧠 Time-Based Comparison of Sensor and Weather Data"))
 current_hour = now.hour
 in_compare_time = (4 <= current_hour < 6) or (13 <= current_hour < 15)
 
@@ -322,6 +322,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
