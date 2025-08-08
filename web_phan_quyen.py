@@ -183,3 +183,4 @@ esp32_response = {
     "sensor_hum": sensor_hum
 }
 st.code(esp32_response, language='json')
+
