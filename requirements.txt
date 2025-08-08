@@ -1,3 +1,5 @@
 flask
 streamlit
 streamlit-autorefresh
+pytz
+
