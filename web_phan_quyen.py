@@ -99,17 +99,17 @@ latitude, longitude = locations[selected_city]
 
 # --- NÔNG SẢN ---
 crops = {
-    "Ngô": (75, 100), 
-    "Chuối": (270, 365),
-    "Rau cải": (30, 45),
-    "Ớt": (70, 90), 
+    "Ngô/Corn": (75, 100), 
+    "Chuối/Banana": (270, 365),
+    "Rau cải/Mustard greens": (30, 45),
+    "Ớt/Chili pepper": (70, 90), 
 }
 # Độ ẩm đất yêu cầu tối thiểu theo loại cây trồng
 required_soil_moisture = {
-    "Ngô": 65,
-    "Chuối": 70,
-    "Rau cải": 60,
-    "Ớt": 65
+    "Ngô/Corn": 65,
+    "Chuối/Banana": 70,
+    "Rau cải/Mustard greens": 60,
+    "Ớt/Chili pepper": 65
 }
 if user_type == _("Người điều khiển", "Control Administrator"):
     selected_crop = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), list(crops.keys()))
@@ -277,6 +277,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
