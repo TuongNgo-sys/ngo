@@ -66,7 +66,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }:{now.strftime('%d/%m/%Y')}</h3> ")
+st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }:{now.strftime('%d/%m/%Y')}</h3>", unsafe_allow_html=True)
 
 # --- PHÂN QUYỀN ---
 st.sidebar.title(_("🔐 Chọn vai trò người dùng", "🔐 Select User Role"))
@@ -210,6 +210,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
