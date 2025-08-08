@@ -124,14 +124,21 @@ st.write(f"💧 Độ ẩm đất cảm biến: **{sensor_hum} %**")
 st.write(f"☀️ Cường độ ánh sáng: **{sensor_light} lux**")
 
 # --- SO SÁNH ---
-st.subheader("🧠 So sánh dữ liệu cảm biến và thời tiết")
-temp_diff = abs(current_weather.get("temperature_2m", 0) - sensor_temp)
-hum_diff = abs(current_weather.get("relative_humidity_2m", 0) - sensor_hum)
+st.subheader("🧠 So sánh dữ liệu cảm biến và thời tiết (theo khung giờ)")
 
-if temp_diff < 2 and hum_diff < 10:
-    st.success("✅ Cảm biến trùng khớp thời tiết.")
+current_hour = now.hour
+in_compare_time = (4 <= current_hour < 6) or (13 <= current_hour < 15)
+
+if in_compare_time:
+    temp_diff = abs(current_weather.get("temperature_2m", 0) - sensor_temp)
+    hum_diff = abs(current_weather.get("relative_humidity_2m", 0) - sensor_hum)
+
+    if temp_diff < 2 and hum_diff < 10:
+        st.success("✅ Cảm biến trùng khớp thời tiết trong khung giờ cho phép.")
+    else:
+        st.warning(f"⚠️ Sai lệch trong khung giờ: {temp_diff:.1f}°C & {hum_diff:.1f}%")
 else:
-    st.warning(f"⚠️ Sai lệch dữ liệu: {temp_diff:.1f}°C & {hum_diff:.1f}%")
+    st.info("⏱️ Hiện tại không trong khung giờ so sánh (04:00–06:00 hoặc 13:00–15:00).")
 
 # --- GIAI ĐOẠN CÂY ---
 st.subheader("📈 Giai đoạn phát triển cây")
@@ -176,4 +183,5 @@ esp32_response = {
     "sensor_hum": sensor_hum
 }
 st.code(esp32_response, language='json')
+
 
