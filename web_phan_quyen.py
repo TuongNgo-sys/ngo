@@ -44,16 +44,42 @@ with col1:
     except:
         st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))
 with col2:
-    st.markdown("<h3 style='color: #004aad;'>Ho Chi Minh City University of Technology and Education</h3>", unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #004aad;'>International Training Institute</h4>", unsafe_allow_html=True)
+     st.markdown(
+    """
+    <style>
+    h1 {
+        color: #0000FF !important;
+        font-size: 25px !important;
+        font-family: Arial, sans-serif !important;
+        font-weight: bold !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+    st.markdown("<h1>Ho Chi Minh City University of Technology and Education</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>International Training Institute</h1>", unsafe_allow_html=True)
 
-st.markdown(f"<h2 style='text-align: center;'>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
+ st.markdown(
+    """
+    <style>
+    h2 {
+        color: #000000 !important;
+        font-size: 30px !important;
+        font-family: Arial, sans-serif !important;
+        font-weight: bold !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+st.markdown(f"<h2>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
 
 # Thiết lập múi giờ Việt Nam
 vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
 now = datetime.now(vn_tz)
 #st.markdown(f"<h5>Thời gian hiện tại (VN): {now.strftime('%d/%m/%Y')}</h5>", unsafe_allow_html=True)
-st.markdown(f"**⏰ { _('Thời gian hiện tại', 'Current time') }:** {now.strftime('%d/%m/%Y')}")
+st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }:</h3> {now.strftime('%d/%m/%Y')}")
 
 # --- PHÂN QUYỀN ---
 st.sidebar.title(_("🔐 Chọn vai trò người dùng", "🔐 Select User Role"))
@@ -197,6 +223,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
