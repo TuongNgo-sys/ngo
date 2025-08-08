@@ -142,16 +142,17 @@ st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }:{now.str
 
 
 # --- PHÂN QUYỀN ---
-st.sidebar.title(_("🔐 Chọn vai trò người dùng", "🔐 Select User Role"))
-user_type = st.sidebar.radio(_("Bạn là:", "You are:"), [_("Người giám sát", " Monitoring Officer"), _("Người điều khiển", "Control Administrator")])
+st.sidebar.title(T["role_title"])
+user_type = st.sidebar.radio("", T["roles"], index=T["roles"].index(st.session_state["user_type"]))
+st.session_state["user_type"] = user_type
 
-if user_type == _("Người điều khiển", "Control Administrator"):
-    password = st.sidebar.text_input(_("🔑 Nhập mật khẩu:", "🔑 Enter password:"), type="password")
+if user_type == T["roles"][1]:  # Người điều khiển / Controller
+    password = st.sidebar.text_input(T["password"], type="password")
     if password != "admin123":
-        st.sidebar.error(_("❌ Mật khẩu sai. Truy cập bị từ chối.", "❌ Incorrect password. Access denied."))
+        st.sidebar.error(T["wrong_pass"])
         st.stop()
     else:
-        st.sidebar.success(_("✅ Xác thực thành công.", "✅ Authentication successful."))
+        st.sidebar.success(T["pass_ok"])
 
 
 # --- ĐỊA ĐIỂM ---
@@ -420,6 +421,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
