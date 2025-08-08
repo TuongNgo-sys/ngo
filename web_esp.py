@@ -4,7 +4,7 @@ import requests
 from datetime import datetime, timedelta, date
 import random
 from PIL import Image
-from streamlit_autorefresh import st_autorefresh
+#from streamlit_autorefresh import st_autorefresh
 
 # ------------------ STREAMLIT APP ------------------
 def run_streamlit():
@@ -96,3 +96,4 @@ def run_streamlit():
 
 if __name__ == '__main__':
     run_streamlit()
+
