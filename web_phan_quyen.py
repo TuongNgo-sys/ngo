@@ -111,16 +111,15 @@ required_soil_moisture = {
     "Rau cải": 60,
     "Ớt": 65
 }
-# Hiển thị độ ẩm đất yêu cầu theo loại cây
+if user_type == _("Người điều khiển", "Control Administrator"):
+    selected_crop = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), list(crops.keys()))
+    planting_date = st.date_input(_("📅 Ngày gieo trồng:", "📅 Planting date:"))
+    # Hiển thị độ ẩm đất yêu cầu theo loại cây
   if selected_crop in required_soil_moisture:
     st.markdown(
         f"🌱 **{_('Độ ẩm đất cần thiết cho', 'Required soil moisture for')} {selected_crop}**: "
         f"**{required_soil_moisture[selected_crop]}%**"
     )
-if user_type == _("Người điều khiển", "Control Administrator"):
-    selected_crop = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), list(crops.keys()))
-    planting_date = st.date_input(_("📅 Ngày gieo trồng:", "📅 Planting date:"))
-
     crop_data[selected_city] = {
         "crop": selected_crop,
         "planting_date": planting_date.isoformat()
@@ -132,6 +131,12 @@ elif user_type == _("Người giám sát", " Monitoring Officer"):
         selected_crop = crop_data[selected_city]["crop"]
         planting_date = date.fromisoformat(crop_data[selected_city]["planting_date"])
         st.success(f"📍 { _('Đang trồng', 'Currently growing') }: **{selected_crop}** - **{selected_city}** - { _('từ ngày', 'since') } **{planting_date.strftime('%d/%m/%Y')}**")
+        # Hiển thị độ ẩm đất yêu cầu theo loại cây
+        if selected_crop in required_soil_moisture:
+            st.markdown(
+                f"🌱 **{_('Độ ẩm đất cần thiết cho', 'Required soil moisture for')} {selected_crop}**: "
+                f"**{required_soil_moisture[selected_crop]}%**"
+            )
     else:
         st.warning(_("📍 Chưa có thông tin gieo trồng tại khu vực này.", "📍 No crop information available in this location."))
         st.stop()
@@ -271,6 +276,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
