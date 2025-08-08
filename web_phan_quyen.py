@@ -41,7 +41,7 @@ try:
     st.markdown(
     """
     <div style="text-align: center; padding-top: 0px;">
-        <img src="logo1.png" width="1200" height="100">
+        <img src="logo1.png" width="1200" height="500">
     </div>
     """,
     unsafe_allow_html=True
@@ -213,6 +213,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
