@@ -104,12 +104,6 @@ crops = {
     "Rau cải": (30, 45),
     "Ớt": (70, 90), 
 }
-# Hiển thị độ ẩm đất yêu cầu theo loại cây
-if selected_crop in required_soil_moisture:
-    st.markdown(
-        f"🌱 **{_('Độ ẩm đất cần thiết cho', 'Required soil moisture for')} {selected_crop}**: "
-        f"**{required_soil_moisture[selected_crop]}%**"
-    )
 # Độ ẩm đất yêu cầu tối thiểu theo loại cây trồng
 required_soil_moisture = {
     "Ngô": 65,
@@ -117,7 +111,12 @@ required_soil_moisture = {
     "Rau cải": 60,
     "Ớt": 65
 }
-
+# Hiển thị độ ẩm đất yêu cầu theo loại cây
+if selected_crop in required_soil_moisture:
+    st.markdown(
+        f"🌱 **{_('Độ ẩm đất cần thiết cho', 'Required soil moisture for')} {selected_crop}**: "
+        f"**{required_soil_moisture[selected_crop]}%**"
+    )
 if user_type == _("Người điều khiển", "Control Administrator"):
     selected_crop = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), list(crops.keys()))
     planting_date = st.date_input(_("📅 Ngày gieo trồng:", "📅 Planting date:"))
@@ -272,6 +271,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
