@@ -108,6 +108,12 @@ if user_type.strip() == "Monitoring Officer":
         selected_crop = crop_data[selected_city]["crop"]
         planting_date = date.fromisoformat(crop_data[selected_city]["planting_date"])
         st.success(f"📍 Đang trồng: **{selected_crop}** tại **{selected_city}** từ ngày **{planting_date.strftime('%d/%m/%Y')}**")
+        # Lưu thông tin vào crop_data
+        crop_data[selected_city] = {
+            "crop": selected_crop,
+            "planting_date": planting_date.isoformat()
+        }
+        save_crop_data(crop_data)
 elif user_type == "Monitoring Officer":
       if selected_city in crop_data:
         selected_crop = crop_data[selected_city]["crop"]
@@ -116,13 +122,6 @@ elif user_type == "Monitoring Officer":
 else:
         st.warning("📍 Chưa có thông tin gieo trồng tại khu vực này.")
         st.stop()
-        # Lưu thông tin vào crop_data
-        crop_data[selected_city] = {
-            "crop": selected_crop,
-            "planting_date": planting_date.isoformat()
-        }
-        save_crop_data(crop_data)
-
 # --- DỰ ĐOÁN THU HOẠCH ---
 min_days, max_days = crops[selected_crop]
 harvest_min = planting_date + timedelta(days=min_days)
@@ -214,6 +213,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
