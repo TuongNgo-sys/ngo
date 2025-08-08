@@ -1,32 +1,31 @@
+# web_esp.py
 import streamlit as st
 from datetime import datetime, timedelta, date
 import random
 from PIL import Image
 import requests
+import json
+import os
 from streamlit_autorefresh import st_autorefresh
 
-from flask import Flask, jsonify, request
-from threading import Thread
-
-# =============== FLASK APP ===============
-flask_app = Flask(__name__)
-esp32_data = {}
-
-@flask_app.route("/esp32_api", methods=["GET"])
-def get_data():
-    return jsonify(esp32_data)
-
-def run_flask():
-    flask_app.run(port=8502, debug=False, use_reloader=False)
-
-# Khởi động Flask server trong luồng song song
-flask_thread = Thread(target=run_flask)
-flask_thread.setDaemon(True)
-flask_thread.start()
-
-# =============== STREAMLIT APP ===============
 st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
-st_autorefresh(interval=1800000, key="refresh")  # 30 phút
+st_autorefresh(interval=3600 * 1000, key="refresh")
+
+DATA_FILE = "crop_data.json"
+
+# --- HÀM TIỆN ÍCH ---
+def load_crop_data():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            return json.load(f)
+    else:
+        return {}
+
+def save_crop_data(data):
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f)
+
+crop_data = load_crop_data()
 
 # --- LOGO ---
 col1, col2 = st.columns([1, 6])
@@ -45,18 +44,17 @@ st.markdown("<h2 style='text-align: center;'>🌾 Smart Agricultural Irrigation 
 now = datetime.now()
 st.markdown(f"**⏰ Thời gian hiện tại:** `{now.strftime('%H:%M:%S - %d/%m/%Y')}`")
 
-# --- NHÓM NGƯỜI DÙNG ---
-user_type = st.radio("👤 Bạn là:", ["Người giám sát", "Người điều khiển"])
-is_controller = False
+# --- PHÂN QUYỀN ---
+st.sidebar.title("🔐 Chọn vai trò người dùng")
+user_type = st.sidebar.radio("Bạn là:", ["Người giám sát", "Người điều khiển"])
 
 if user_type == "Người điều khiển":
-    password = st.text_input("🔐 Nhập mật khẩu:", type="password")
-    if password == "123456hihi":
-        st.success("✅ Đăng nhập thành công.")
-        is_controller = True
-    else:
-        st.warning("❌ Sai mật khẩu hoặc chưa nhập.")
+    password = st.sidebar.text_input("🔑 Nhập mật khẩu:", type="password")
+    if password != "admin123":
+        st.sidebar.error("❌ Mật khẩu sai. Truy cập bị từ chối.")
         st.stop()
+    else:
+        st.sidebar.success("✅ Xác thực thành công.")
 
 # --- ĐỊA ĐIỂM ---
 locations = {
@@ -67,13 +65,10 @@ locations = {
     "Bình Dương": (11.3254, 106.4770),
     "Đồng Nai": (10.9453, 106.8133),
 }
-
-# Nếu là giám sát viên, hiển thị cây trồng đang theo dõi
 selected_city = st.selectbox("📍 Chọn địa điểm:", list(locations.keys()))
 latitude, longitude = locations[selected_city]
 
-
-# --- CHỈ NGƯỜI ĐIỀU KHIỂN ĐƯỢC PHÉP CHỌN NÔNG SẢN ---
+# --- NÔNG SẢN ---
 crops = {
     "Ngô": (75, 100), 
     "Chuối": (270, 365),
@@ -81,13 +76,27 @@ crops = {
     "Ớt": (70, 90), 
 }
 
-if is_controller:
+if user_type == "Người điều khiển":
     selected_crop = st.selectbox("🌱 Chọn loại nông sản:", list(crops.keys()))
     planting_date = st.date_input("📅 Ngày gieo trồng:")
-else:
-    selected_crop = "Ngô"
-    planting_date = date.today() - timedelta(days=10)
 
+    # Lưu thông tin vào crop_data
+    crop_data[selected_city] = {
+        "crop": selected_crop,
+        "planting_date": planting_date.isoformat()
+    }
+    save_crop_data(crop_data)
+
+elif user_type == "Người giám sát":
+    if selected_city in crop_data:
+        selected_crop = crop_data[selected_city]["crop"]
+        planting_date = date.fromisoformat(crop_data[selected_city]["planting_date"])
+        st.success(f"📍 Đang trồng: **{selected_crop}** tại **{selected_city}** từ ngày **{planting_date.strftime('%d/%m/%Y')}**")
+    else:
+        st.warning("📍 Chưa có thông tin gieo trồng tại khu vực này.")
+        st.stop()
+
+# --- DỰ ĐOÁN THU HOẠCH ---
 min_days, max_days = crops[selected_crop]
 harvest_min = planting_date + timedelta(days=min_days)
 harvest_max = planting_date + timedelta(days=max_days)
@@ -158,19 +167,12 @@ if is_irrigating:
 else:
     st.info("⛅ Không tưới - độ ẩm đủ hoặc trời sắp mưa.")
 
-# --- JSON CHO ESP32 ---
+# --- KẾT QUẢ JSON ---
 st.subheader("🔁 Dữ liệu gửi về ESP32 (giả lập)")
-esp32_data.update({
+esp32_response = {
     "time": now.strftime('%H:%M:%S'),
     "irrigate": is_irrigating,
     "sensor_temp": sensor_temp,
-    "sensor_hum": sensor_hum,
-    "sensor_light": sensor_light,
-    "weather_temp": current_weather.get("temperature_2m", 0),
-    "weather_humidity": current_weather.get("relative_humidity_2m", 0),
-    "weather_rain_prob": current_weather.get("precipitation_probability", 0)
-})
-st.code(esp32_data, language='json')
-
-
-
+    "sensor_hum": sensor_hum
+}
+st.code(esp32_response, language='json')
