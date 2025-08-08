@@ -103,7 +103,7 @@ crops = {
     "Ớt": (70, 90), 
 }
 
-if user_type == "Người điều khiển":
+if user_type == " Monitoring Officer":
     selected_crop = st.selectbox("🌱 Chọn loại nông sản:", list(crops.keys()))
     planting_date = st.date_input("📅 Ngày gieo trồng:")
 
@@ -114,7 +114,7 @@ if user_type == "Người điều khiển":
     }
     save_crop_data(crop_data)
 
-elif user_type == "Người giám sát":
+elif user_type == " Monitoring Officer":
     if selected_city in crop_data:
         selected_crop = crop_data[selected_city]["crop"]
         planting_date = date.fromisoformat(crop_data[selected_city]["planting_date"])
@@ -214,6 +214,7 @@ st.code(esp32_response, language='json')
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
