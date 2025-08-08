@@ -119,21 +119,18 @@ latitude, longitude = locations[selected_city]
 crops = {
     "Ngô": (75, 100), 
     "Chuối": (270, 365),
-    "Rau cải": (30, 45),
     "Ớt": (70, 90), 
 }
 # Độ ẩm đất yêu cầu tối thiểu theo loại cây trồng
 required_soil_moisture = {
     "Ngô": 65,
     "Chuối": 70,
-    "Rau cải": 60,
     "Ớt": 65
 }
 # Tên cây trồng song ngữ
 crop_names = {
     "Ngô": _("Ngô", "Corn"),
     "Chuối": _("Chuối", "Banana"),
-    "Rau cải": _("Rau cải", "Mustard greens"),
     "Ớt": _("Ớt", "Chili pepper")
 }
 if user_type == _("Người điều khiển", "Control Administrator"):
@@ -239,18 +236,16 @@ def giai_doan_cay(crop, days):
         if days <= 14: return _("🌱 Mới trồng", "🌱 Newly planted")
         elif days <= 180: return _("🌿 Phát triển", "🌿 Growing")
         elif days <= 330: return _("🌼 Ra hoa", "🌼 Flowering")
-        else: return _("🍌 Trước thu hoạch", "🍌 Pre-harvest")
-    elif crop == "Rau cải":
-        return _("🌱 Mới trồng", "🌱 Newly planted") if days <= 25 else _("🌿 Trưởng thành", "🌿 Mature")
+        else: return _("🍌 Đã thu hoạch", "🍌 Harvested")
     elif crop == "Ngô":
         if days <= 25: return _("🌱 Mới trồng", "🌱 Newly planted")
         elif days <= 70: return _("🌿 Thụ phấn", "🌿 Pollination")
         elif days <= 100: return _("🌼 Trái phát triển", "🌼 Kernel growth")
-        else: return _("🌽 Trước thu hoạch", "🌽 Pre-harvest")
+        else: return _("🌽 Đã thu hoạch", "🌽 Harvested")
     elif crop == "Ớt":
         if days <= 20: return _("🌱 Mới trồng", "🌱 Newly planted")
         elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
-        else: return _("🌶️ Trước thu hoạch", "🌶️ Pre-harvest")
+        else: return _("🌶️ Đã thu hoạch", "🌶️ Harvested")
 #st.info(f"📅 { _('Đã trồng', 'Planted for') }: **{days_since} { _('ngày', 'days') }**\n\n🔍 {giai_doan_cay(selected_crop, days_since)}")
 st.info(
     f"📅 { _('Đã trồng', 'Planted for') }: **{days_since} { _('ngày', 'days') }**\n\n"
@@ -359,3 +354,4 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
