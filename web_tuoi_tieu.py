@@ -78,21 +78,7 @@ vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
 now = datetime.now(vn_tz)
 
 # -----------------------
-# Sidebar - role & authentication (bổ sung, phải nằm trước phần dùng user_type)
-# -----------------------
-st.sidebar.title(_("🔐 Chọn vai trò người dùng", "🔐 Select User Role"))
-user_type = st.sidebar.radio(_("Bạn là:", "You are:"), [_("Người điều khiển", "Control Administrator"), _("Người giám sát", " Monitoring Officer")])
-
-if user_type == _("Người điều khiển", "Control Administrator"):
-    password = st.sidebar.text_input(_("🔑 Nhập mật khẩu:", "🔑 Enter password:"), type="password")
-    if password != "admin123":
-        st.sidebar.error(_("❌ Mật khẩu sai. Truy cập bị từ chối.", "❌ Incorrect password. Access denied."))
-        st.stop()
-    else:
-        st.sidebar.success(_("✅ Xác thực thành công.", "✅ Authentication successful."))
-
-# -----------------------
-# MQTT - Hàm gửi lệnh bật/tắt bơm qua MQTT (phần 3)
+# MQTT - Hàm gửi lệnh bật/tắt bơm qua MQTT
 # -----------------------
 MQTT_BROKER = "test.mosquitto.org"  # hoặc broker MQTT của bạn
 MQTT_PORT = 1883
@@ -111,9 +97,9 @@ def mqtt_send_pump_command(state: bool):
         return False
 
 # -----------------------
-# Tiếp tục phần UI, cấu hình chung
-# (Bạn giữ nguyên code UI header/logo, crop, weather, sensor... ở đây)
+# UI - Header & Logo (unchanged) ...
 # -----------------------
+# ... your existing UI and logic code here unchanged ...
 
 # -----------------------
 # Mode and Watering Schedule (shared config.json)
@@ -172,11 +158,13 @@ else:
             st.markdown(_("⚙️ Phương thức thủ công: Thủ công ở tủ điện", "⚙️ Manual method: Manual on cabinet"))
 
 # -----------------------
-# Phần xử lý tưới trong chế độ thủ công trên app (phần 4)
+# Phần xử lý tưới trong chế độ thủ công trên app (chèn phần 4)
 # -----------------------
 should_water = False
 if config.get("mode") == "auto":
     # Logic tưới tự động của bạn (giữ nguyên)
+    # Ví dụ:
+    # should_water = simulated_soil_moisture < 65 and is_in_watering_time
     pass
 elif config.get("mode") == "manual":
     manual_control_type = config.get("manual_control_type", None)
@@ -211,9 +199,10 @@ else:
 
 # -----------------------
 # Phần còn lại code của bạn giữ nguyên
-# ... lịch sử, biểu đồ, MQTT subscribe ...
 # -----------------------
+# ... tiếp tục với phần lịch sử, biểu đồ, MQTT subscribe... (giữ nguyên)
 
+# ... MQTT subscribe và xử lý (giữ nguyên) ...
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("MQTT connected successfully")
