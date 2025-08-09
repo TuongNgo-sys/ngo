@@ -11,6 +11,7 @@ import pytz
 import pandas as pd
 import threading
 import paho.mqtt.client as mqtt
+import matplotlib.pyplot as plt
 
 # -----------------------
 # Config & helpers
@@ -29,6 +30,8 @@ DATA_FILE = "crop_data.json"
 HISTORY_FILE = "history_irrigation.json"
 FLOW_FILE = "flow_data.json"  # lưu dữ liệu lưu lượng (esp32) theo thời gian
 CONFIG_FILE = "config.json"   # lưu cấu hình chung: khung giờ tưới + chế độ
+SOIL_HUMIDITY_HISTORY_FILE = "soil_moisture_history.json"
+WATER_FLOW_HISTORY_FILE = "water_flow_history.json"
 
 def load_json(path, default):
     if os.path.exists(path):
@@ -150,7 +153,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     st.subheader(_("Thêm / Cập nhật vùng trồng", "Add / Update Plantings"))
     multiple = st.checkbox(_("Trồng nhiều loại trên khu vực này", "Plant multiple crops in this location"), value=False)
     if selected_city not in crop_data:
-        crop_data[selected_city] = {"plots": [], "mode": "auto"}
+        crop_data[selected_city] = {"plots": [], "mode": config.get("mode", "auto")}
     if multiple:
         st.markdown(_("Thêm từng loại cây vào khu vực (bấm 'Thêm cây')", "Add each crop to the area (click 'Add crop')"))
         col1, col2 = st.columns([2, 1])
@@ -170,7 +173,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         selected_crop = next(k for k, v in crop_names.items() if v == selected_crop_display)
         planting_date = st.date_input(_("📅 Ngày gieo trồng:", "📅 Planting date:"), value=date.today())
         if st.button(_("💾 Lưu thông tin trồng", "💾 Save planting info")):
-            crop_data[selected_city] = {"plots": [{"crop": selected_crop, "planting_date": planting_date.isoformat()}], "mode": "auto"}
+            crop_data[selected_city] = {"plots": [{"crop": selected_crop, "planting_date": planting_date.isoformat()}], "mode": config.get("mode", "auto")}
             save_json(DATA_FILE, crop_data)
             st.success(_("Đã lưu thông tin trồng.", "Planting info saved."))
 
@@ -274,117 +277,125 @@ else:
         elif manual_type_display == _("Thủ công ở tủ điện", "Manual on cabinet") or manual_type_display == "Manual on cabinet":
             st.markdown(_("⚙️ Phương thức thủ công: Thủ công ở tủ điện", "⚙️ Manual method: Manual on cabinet"))
 
-# Kiểm tra xem hiện tại có trong khung giờ tưới không
-def is_in_watering_time():
-    now_time = datetime.now(vn_tz).time()
-    start = datetime.strptime(config["watering_schedule"].split("-")[0], "%H:%M").time()
-    end = datetime.strptime(config["watering_schedule"].split("-")[1], "%H:%M").time()
-    if start <= end:
-        return start <= now_time <= end
-    else:
-        # Trường hợp khung giờ qua nửa đêm
-        return now_time >= start or now_time <= end
+# -----------------------
+# Weather API (unchanged)
+# -----------------------
+st.subheader(_("🌦️ Thời tiết hiện tại", "🌦️ Current Weather"))
+weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability&timezone=auto"
+try:
+    response = requests.get(weather_url, timeout=10)
+    response.raise_for_status()
+    weather_data = response.json()
+    current_weather = weather_data.get("current", {})
+except Exception as e:
+    st.error(f"❌ {_('Lỗi khi tải dữ liệu thời tiết', 'Error loading weather data')}: {str(e)}")
+    current_weather = {"temperature_2m": "N/A", "relative_humidity_2m": "N/A", "precipitation": "N/A", "precipitation_probability": "N/A"}
 
-in_watering_time = is_in_watering_time()
+col1, col2, col3 = st.columns(3)
+col1.metric("🌡️ " + _("Nhiệt độ", "Temperature"), f"{current_weather.get('temperature_2m', 'N/A')} °C")
+col2.metric("💧 " + _("Độ ẩm", "Humidity"), f"{current_weather.get('relative_humidity_2m', 'N/A')} %")
+col3.metric("☔ " + _("Khả năng mưa", "Precipitation Prob."), f"{current_weather.get('precipitation_probability', 'N/A')} %")
 
 # -----------------------
-# MQTT nhận dữ liệu thực từ ESP32-WROOM
+# Sensor Data from ESP32-WROOM via MQTT
 # -----------------------
+st.subheader(_("📡 Dữ liệu cảm biến từ ESP32", "📡 Sensor Data from ESP32"))
 
-MQTT_BROKER = "test.mosquitto.org"
-MQTT_PORT = 1883
-TOPIC_DATA = "smart_irrigation/sensor_data"
-TOPIC_COMMAND = "smart_irrigation/command"
-
-# Biến toàn cục lưu dữ liệu cảm biến MQTT
+# Global variables to hold latest sensor data
 mqtt_data = {"soil_moisture": None, "light": None, "water_flow": None}
+
+soil_moisture_history = load_json(SOIL_HUMIDITY_HISTORY_FILE, [])
+water_flow_history = load_json(WATER_FLOW_HISTORY_FILE, [])
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("MQTT connected successfully")
-        client.subscribe(TOPIC_DATA)
+        client.subscribe("smart_irrigation/sensor_data")
     else:
         print(f"MQTT failed to connect, return code {rc}")
 
 def on_message(client, userdata, msg):
+    global mqtt_data, soil_moisture_history, water_flow_history
     try:
         payload_str = msg.payload.decode()
-        print(f"MQTT message received on {msg.topic}: {payload_str}")
         data = json.loads(payload_str)
+        soil_moisture = data.get("soil_moisture")
+        light = data.get("light")
+        water_flow = data.get("water_flow")
 
-        # Cập nhật biến global mqtt_data
-        mqtt_data["soil_moisture"] = data.get("soil_moisture", None)
-        mqtt_data["light"] = data.get("light", None)
-        mqtt_data["water_flow"] = data.get("water_flow", None)
+        mqtt_data["soil_moisture"] = soil_moisture
+        mqtt_data["light"] = light
+        mqtt_data["water_flow"] = water_flow
 
-        # Ví dụ logic: nếu soil_moisture < 65, gửi lệnh bật bơm, ngược lại tắt
-        if mqtt_data["soil_moisture"] is not None:
-            if mqtt_data["soil_moisture"] < 65:
-                print("Soil moisture low, sending pump_on command")
-                client.publish(TOPIC_COMMAND, "pump_on")
-            else:
-                print("Soil moisture sufficient, sending pump_off command")
-                client.publish(TOPIC_COMMAND, "pump_off")
+        now_iso = datetime.now(vn_tz).isoformat()
+
+        # Update soil moisture history
+        if soil_moisture is not None:
+            soil_moisture_history.append({"timestamp": now_iso, "value": soil_moisture})
+            if len(soil_moisture_history) > 100:
+                soil_moisture_history.pop(0)
+            save_json(SOIL_HUMIDITY_HISTORY_FILE, soil_moisture_history)
+
+        # Update water flow history
+        if water_flow is not None:
+            water_flow_history.append({"timestamp": now_iso, "value": water_flow})
+            if len(water_flow_history) > 100:
+                water_flow_history.pop(0)
+            save_json(WATER_FLOW_HISTORY_FILE, water_flow_history)
+
     except Exception as e:
         print(f"Error processing MQTT message: {e}")
 
-def mqtt_thread():
+def mqtt_loop():
     client = mqtt.Client()
     client.on_connect = on_connect
     client.on_message = on_message
-    try:
-        client.connect(MQTT_BROKER, MQTT_PORT, 60)
-        client.loop_forever()
-    except Exception as e:
-        print(f"MQTT connection error: {e}")
+    client.connect("broker.hivemq.com", 1883, 60)
+    client.loop_forever()
 
-# Khởi chạy MQTT client nền
-threading.Thread(target=mqtt_thread, daemon=True).start()
+# Start MQTT client in background thread
+if "mqtt_thread_started" not in st.session_state:
+    mqtt_thread = threading.Thread(target=mqtt_loop, daemon=True)
+    mqtt_thread.start()
+    st.session_state.mqtt_thread_started = True
+
+# Display latest sensor data
+col1, col2, col3 = st.columns(3)
+col1.metric(_("Độ ẩm đất", "Soil Moisture"), f"{mqtt_data['soil_moisture'] if mqtt_data['soil_moisture'] is not None else 'N/A'} %")
+col2.metric(_("Cường độ ánh sáng", "Light Intensity"), f"{mqtt_data['light'] if mqtt_data['light'] is not None else 'N/A'} lx")
+col3.metric(_("Lưu lượng nước", "Water Flow"), f"{mqtt_data['water_flow'] if mqtt_data['water_flow'] is not None else 'N/A'} L/min")
 
 # -----------------------
-# Hiển thị dữ liệu MQTT nhận được (không còn mô phỏng)
+# Biểu đồ dữ liệu cảm biến
 # -----------------------
-st.subheader(_("📡 Dữ liệu cảm biến từ ESP32", "📡 Sensor Data from ESP32"))
+def to_df(history):
+    df = pd.DataFrame(history)
+    if not df.empty:
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df.set_index("timestamp", inplace=True)
+    return df
 
-if mqtt_data["soil_moisture"] is not None:
-    st.write(f"{_('Độ ẩm đất', 'Soil Moisture')}: {mqtt_data['soil_moisture']}%")
+df_soil = to_df(soil_moisture_history)
+df_flow = to_df(water_flow_history)
+
+st.subheader(_("📈 Biểu đồ dữ liệu cảm biến", "📈 Sensor Data Charts"))
+
+if not df_soil.empty:
+    st.markdown(_("### Độ ẩm đất theo thời gian", "### Soil Moisture Over Time"))
+    st.line_chart(df_soil["value"])
 else:
-    st.write(_("Chưa nhận được dữ liệu độ ẩm đất.", "No soil moisture data received yet."))
+    st.info(_("Chưa có dữ liệu độ ẩm đất để hiển thị biểu đồ.", "No soil moisture data to display chart."))
 
-if mqtt_data["light"] is not None:
-    st.write(f"{_('Ánh sáng', 'Light')}: {mqtt_data['light']} lux")
+if not df_flow.empty:
+    st.markdown(_("### Lưu lượng nước theo thời gian", "### Water Flow Over Time"))
+    st.line_chart(df_flow["value"])
 else:
-    st.write(_("Chưa nhận được dữ liệu ánh sáng.", "No light data received yet."))
-
-if mqtt_data["water_flow"] is not None:
-    st.write(f"{_('Lưu lượng nước', 'Water Flow')}: {mqtt_data['water_flow']} L/min")
-else:
-    st.write(_("Chưa nhận được dữ liệu lưu lượng.", "No water flow data received yet."))
+    st.info(_("Chưa có dữ liệu lưu lượng nước để hiển thị biểu đồ.", "No water flow data to display chart."))
 
 # -----------------------
-# Phần logic tưới nước
+# (Có thể thêm phần điều khiển tưới, lịch sử tưới, v.v. nếu bạn muốn)
 # -----------------------
 
-st.header(_("💧 Điều khiển tưới nước", "💧 Irrigation Control"))
+# Lưu ý: Phần tưới nước tự động, xác nhận bật bơm,... chưa được thêm ở đây,
+# bạn có thể thêm sau nếu cần.
 
-soil_threshold = 65
-current_soil_moisture = mqtt_data["soil_moisture"]
-
-if current_soil_moisture is not None:
-    if current_soil_moisture < soil_threshold:
-        st.warning(_("Độ ẩm đất thấp, cần tưới.", "Soil moisture is low, irrigation needed."))
-        if user_type == _("Người điều khiển", "Control Administrator"):
-            if st.button(_("🔛 Bật bơm tưới ngay", "🔛 Turn pump ON now")):
-                # Gửi lệnh bật bơm thủ công
-                client = mqtt.Client()
-                client.connect(MQTT_BROKER, MQTT_PORT, 60)
-                client.publish(TOPIC_COMMAND, "pump_on")
-                st.success(_("Đã gửi lệnh bật bơm.", "Pump ON command sent."))
-    else:
-        st.success(_("Độ ẩm đất đủ, không cần tưới.", "Soil moisture is sufficient, no irrigation needed."))
-else:
-    st.info(_("Chưa có dữ liệu độ ẩm đất, không thể ra quyết định tưới.", "No soil moisture data, unable to decide irrigation."))
-
-# -----------------------
-# Kết thúc file
-# -----------------------
