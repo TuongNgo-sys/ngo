@@ -1,5 +1,6 @@
-flask
 streamlit
-streamlit-autorefresh
+pandas
+requests
+pillow
+matplotlib
 pytz
-
