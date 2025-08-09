@@ -341,18 +341,21 @@ else:
     # Dùng pandas để lọc dữ liệu theo ngày
     df_hist_all = pd.DataFrame(history_data)
     if 'timestamp' in df_hist_all.columns:
-        df_hist_all['date'] = pd.to_datetime(df_hist_all['timestamp']).dt.date
+        df_hist_all['timestamp'] = pd.to_datetime(df_hist_all['timestamp'], errors='coerce')
+        df_hist_all = df_hist_all.dropna(subset=['timestamp'])
+        df_hist_all['date'] = df_hist_all['timestamp'].dt.date
         df_day = df_hist_all[df_hist_all['date'] == chart_date]
     else:
         df_day = pd.DataFrame()
 
     df_flow_all = pd.DataFrame(flow_data)
     if 'time' in df_flow_all.columns:
-        df_flow_all['date'] = pd.to_datetime(df_flow_all['time']).dt.date
+        df_flow_all['time'] = pd.to_datetime(df_flow_all['time'], errors='coerce')
+        df_flow_all = df_flow_all.dropna(subset=['time'])
+        df_flow_all['date'] = df_flow_all['time'].dt.date
         df_flow_day = df_flow_all[df_flow_all['date'] == chart_date]
     else:
         df_flow_day = pd.DataFrame()
-
     if df_day.empty or df_flow_day.empty:
         st.info(_("📋 Không có dữ liệu trong ngày này.", "📋 No data for selected date."))
     else:
@@ -396,6 +399,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
