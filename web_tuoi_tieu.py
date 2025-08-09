@@ -311,135 +311,58 @@ col3.metric("☔ " + _("Khả năng mưa", "Precipitation Prob."), f"{current_we
 # -----------------------
 # Sensor Data Simulation (for demo)
 # -----------------------
-# MQTT Broker config
-MQTT_BROKER = "test.mosquitto.org"
-MQTT_PORT = 1883
-TOPIC_DATA = "smart_irrigation/sensor_data"
-TOPIC_COMMAND = "smart_irrigation/command"
+st.subheader(_("📡 Dữ liệu cảm biến (mô phỏng)", "📡 Sensor Data (Simulated)"))
+simulated_soil_moisture = random.randint(40, 80)
+simulated_light = random.randint(100, 1000)
+simulated_water_flow = random.randint(0, 100)
 
-# Biến toàn cục lưu trạng thái kết nối MQTT và dữ liệu cảm biến
-esp32_connected = False
-latest_sensor_data = None
-lock = threading.Lock()
+st.write(f"{_('Độ ẩm đất (sim)', 'Soil Moisture (sim)')}: {simulated_soil_moisture}%")
+st.write(f"{_('Ánh sáng (sim)', 'Light (sim)')}: {simulated_light} lux")
+st.write(f"{_('Lưu lượng nước (sim)', 'Water Flow (sim)')}: {simulated_water_flow} L/min")
 
-def on_connect(client, userdata, flags, rc):
-    global esp32_connected
-    if rc == 0:
-        print("MQTT connected successfully")
-        client.subscribe(TOPIC_DATA)
-        with lock:
-            esp32_connected = True
+# --- LƯU DỮ LIỆU MỚI VÀO JSON ---
+add_history_record(simulated_soil_moisture, random.randint(20, 35))  # ví dụ nhiệt độ mô phỏng khác
+add_flow_record(simulated_water_flow)
+
+# -----------------------
+# Check watering schedule and mode for irrigation decision
+# -----------------------
+mode_flag = config.get("mode", "auto")
+manual_control_type = config.get("manual_control_type", None)
+
+should_water = False
+if mode_flag == "auto":
+    # Tự động tưới theo soil moisture và khung giờ
+    should_water = simulated_soil_moisture < 65 and is_in_watering_time
+elif mode_flag == "manual":
+    if manual_control_type == _("Thủ công trên app", "Manual on app") or manual_control_type == "Manual on app":
+        st.warning(_("⚠️ Đang ở chế độ thủ công trên app. Bạn có thể bật hoặc tắt bơm thủ công.", "⚠️ Manual control on app. You can turn pump ON or OFF manually."))
+
+        col_on, col_off = st.columns(2)
+        with col_on:
+            if st.button(_("Bật bơm thủ công", "Turn ON pump manually")):
+                # TODO: Gửi lệnh bật bơm qua MQTT hoặc HTTP
+                st.success(_("Đã gửi lệnh bật bơm", "Sent command to turn ON pump"))
+        with col_off:
+            if st.button(_("Tắt bơm thủ công", "Turn OFF pump manually")):
+                # TODO: Gửi lệnh tắt bơm qua MQTT hoặc HTTP
+                st.success(_("Đã gửi lệnh tắt bơm", "Sent command to turn OFF pump"))
+
+        should_water = False  # Tạm không tự động tưới khi thủ công app
     else:
-        print(f"MQTT failed to connect, return code {rc}")
-        with lock:
-            esp32_connected = False
-
-def on_disconnect(client, userdata, rc):
-    global esp32_connected
-    print(f"MQTT disconnected with return code {rc}")
-    with lock:
-        esp32_connected = False
-
-def on_message(client, userdata, msg):
-    global latest_sensor_data
-    try:
-        payload_str = msg.payload.decode()
-        print(f"MQTT message received on {msg.topic}: {payload_str}")
-        data = json.loads(payload_str)
-        with lock:
-            latest_sensor_data = data
-    except Exception as e:
-        print(f"Error processing MQTT message: {e}")
-
-def mqtt_thread():
-    client = mqtt.Client()
-    client.on_connect = on_connect
-    client.on_disconnect = on_disconnect
-    client.on_message = on_message
-    try:
-        client.connect(MQTT_BROKER, MQTT_PORT, 60)
-        client.loop_forever()
-    except Exception as e:
-        print(f"MQTT connection error: {e}")
-        with lock:
-            global esp32_connected
-            esp32_connected = False
-
-# Start MQTT client in background thread
-threading.Thread(target=mqtt_thread, daemon=True).start()
-
-# Chờ một chút để MQTT cố gắng kết nối
-import time
-time.sleep(2)
-
-# Lấy trạng thái và dữ liệu sensor an toàn
-with lock:
-    connected = esp32_connected
-    sensor_data = latest_sensor_data
-
-st.subheader(_("📡 Dữ liệu cảm biến từ ESP32", "📡 Sensor Data from ESP32"))
-
-if connected and sensor_data is not None:
-    soil_moisture = sensor_data.get("soil_moisture", "N/A")
-    light = sensor_data.get("light", "N/A")
-    water_flow = sensor_data.get("water_flow", "N/A")
-    temperature = sensor_data.get("temperature", "N/A")
-
-    st.success(_("✅ Đã kết nối thành công với ESP32.", "✅ Connected successfully to ESP32."))
-
-    st.write(f"{_('Độ ẩm đất', 'Soil Moisture')}: {soil_moisture}%")
-    st.write(f"{_('Ánh sáng', 'Light')}: {light} lux")
-    st.write(f"{_('Lưu lượng nước', 'Water Flow')}: {water_flow} L/min")
-    st.write(f"{_('Nhiệt độ', 'Temperature')}: {temperature} °C")
-
-    # Lưu lịch sử sensor data thật
-    add_history_record(soil_moisture, temperature)
-    add_flow_record(water_flow)
-
-    # Kiểm tra khung giờ tưới
-    now_time = datetime.now(vn_tz).time()
-    start_watering = datetime.strptime(config["watering_schedule"].split("-")[0], "%H:%M").time()
-    end_watering = datetime.strptime(config["watering_schedule"].split("-")[1], "%H:%M").time()
-    is_in_watering_time = start_watering <= now_time <= end_watering
-
-    mode_flag = config.get("mode", "auto")
-    manual_control_type = config.get("manual_control_type", None)
-
-    should_water = False
-    if mode_flag == "auto":
-        should_water = soil_moisture < 65 and is_in_watering_time
-    elif mode_flag == "manual":
-        if manual_control_type == _("Thủ công trên app", "Manual on app") or manual_control_type == "Manual on app":
-            st.warning(_("⚠️ Đang ở chế độ thủ công trên app. Bạn có thể bật hoặc tắt bơm thủ công.", "⚠️ Manual control on app. You can turn pump ON or OFF manually."))
-
-            col_on, col_off = st.columns(2)
-            with col_on:
-                if st.button(_("Bật bơm thủ công", "Turn ON pump manually")):
-                    # TODO: Gửi lệnh bật bơm qua MQTT hoặc HTTP
-                    st.success(_("Đã gửi lệnh bật bơm", "Sent command to turn ON pump"))
-            with col_off:
-                if st.button(_("Tắt bơm thủ công", "Turn OFF pump manually")):
-                    # TODO: Gửi lệnh tắt bơm qua MQTT hoặc HTTP
-                    st.success(_("Đã gửi lệnh tắt bơm", "Sent command to turn OFF pump"))
-
-            should_water = False
-        else:
-            st.info(
-                _(
-                    "Chế độ thủ công ở tủ điện, không thể điều khiển bơm trên app. Vui lòng thao tác trên tủ điện.",
-                    "Manual mode on cabinet, cannot control pump on app. Please operate on cabinet.",
-                )
+        # Thủ công ở tủ điện thì không bật bơm trên app được
+        st.info(
+            _(
+                "Chế độ thủ công ở tủ điện, không thể điều khiển bơm trên app. Vui lòng thao tác trên tủ điện.",
+                "Manual mode on cabinet, cannot control pump on app. Please operate on cabinet.",
             )
-            should_water = False
+        )
+        should_water = False
 
-    if should_water:
-        st.warning(_("⚠️ Cần tưới nước cho cây trồng.", "⚠️ Irrigation is needed for crops."))
-    else:
-        st.info(_("💧 Không cần tưới nước lúc này.", "💧 No irrigation needed at this moment."))
-
+if should_water:
+    st.warning(_("⚠️ Cần tưới nước cho cây trồng.", "⚠️ Irrigation is needed for crops."))
 else:
-    st.error(_("❌ Hiện không kết nối được với ESP32. Vui lòng kiểm tra thiết bị hoặc mạng.", "❌ Currently not connected to ESP32. Please check device or network."))
-    # Không dùng dữ liệu mô phỏng, không lưu lịch sử, không xử lý tưới
+    st.info(_("💧 Không cần tưới nước lúc này.", "💧 No irrigation needed at this moment."))
 # -----------------------
 # Show historical charts (độ ẩm và lưu lượng)
 # -----------------------
@@ -560,7 +483,6 @@ threading.Thread(target=mqtt_thread, daemon=True).start()
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
-
 
 
 
