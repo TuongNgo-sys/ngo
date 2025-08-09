@@ -110,7 +110,7 @@ except:
 
 now = datetime.now(vn_tz)
 st.markdown(f"<h2 style='text-align: center; font-size: 50px;'>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
-st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }: {now.strftime('%d/%m/%Y %H:%M:%S')}</h3>", unsafe_allow_html=True)
+st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }: {now.strftime('%d/%m/%Y')}</h3>", unsafe_allow_html=True)
 
 # -----------------------
 # Sidebar - role, auth
@@ -195,9 +195,6 @@ if user_type == _("Người điều khiển", "Control Administrator"):
 if user_type == _("Người giám sát", " Monitoring Officer"):
     st.header(_("👁️ Giám sát hệ thống", "👁️ System Monitoring"))
 
-    # 1. Chọn khu vực (giữ nguyên)
-    selected_city_display = st.selectbox(_("📍 Chọn khu vực để giám sát", "📍 Select monitoring location"), location_display_names)
-    selected_city = next(k for k, v in location_names.items() if v == selected_city_display)
 
     # 2. Hiển thị thông tin cây trồng
     st.subheader(_("Thông tin cây trồng tại khu vực", "Plantings at this location"))
@@ -549,6 +546,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
 st.markdown("---")
 st.markdown(_("© 2025 Ngô Nguyễn Định Tường", "© 2025 Ngo Nguyen Dinh Tuong"))
 st.markdown(_("© 2025 Mai Phúc Khang", "© 2025 Mai Phuc Khang"))
+
 
 
 
