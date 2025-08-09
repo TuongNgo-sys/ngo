@@ -82,15 +82,6 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         st.stop()
     else:
         st.sidebar.success(_("✅ Xác thực thành công.", "✅ Authentication successful."))
-
-# Mode: Manual / Auto
-mode = st.sidebar.radio(_("Chế độ hoạt động", "Operation mode"), [_("Auto", "Auto"), _("Manual", "Manual")])
-mode_flag = "auto" if mode == _("Auto", "Auto") else "manual"
-
-# LED indicator
-led_color = "#00cc00" if mode_flag == "auto" else "#ff3333"
-st.sidebar.markdown(f"<div><span class='led' style='background:{led_color}'></span> { _('Chế độ', 'Mode') }: <b>{mode}</b></div>", unsafe_allow_html=True)
-
 # -----------------------
 # Locations & crops
 # -----------------------
@@ -207,7 +198,13 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
         st.dataframe(df_plots)
     else:
         st.info(_("📍 Chưa có thông tin gieo trồng tại khu vực này.", "📍 No crop information available in this location."))
+# Mode: Manual / Auto
+mode = st.sidebar.radio(_("Chế độ hoạt động", "Operation mode"), [_("Auto", "Auto"), _("Manual", "Manual")])
+mode_flag = "auto" if mode == _("Auto", "Auto") else "manual"
 
+# LED indicator
+led_color = "#00cc00" if mode_flag == "auto" else "#ff3333"
+st.sidebar.markdown(f"<div><span class='led' style='background:{led_color}'></span> { _('Chế độ', 'Mode') }: <b>{mode}</b></div>", unsafe_allow_html=True)
 # reuse growth stage function for later
 def giai_doan_cay(crop, days):
     if crop == "Chuối":
@@ -608,3 +605,4 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
