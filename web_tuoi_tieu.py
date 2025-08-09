@@ -128,8 +128,23 @@ def send_pump_command(turn_on):
     cmd = {"pump": "on" if turn_on else "off"}
     mqtt_client.publish(TOPIC_COMMAND, json.dumps(cmd))
 
-# --- UI ---
-st.title(_("🌾 Hệ thống tưới tiêu thông minh", "🌾 Smart Irrigation System"))
+# --- LOGO ---
+try:
+    st.markdown(
+    """
+    <style>
+    .block-container {
+        padding-top: 1rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+    st.image(Image.open("logo1.png"), width=1200)
+except:
+    st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))
+
+st.markdown(f"<h2 style='text-align: center; font-size: 50px;'>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
 
 # --- Location and Crops ---
 locations = {
@@ -318,4 +333,5 @@ else:
 # --- Kết thúc ---
 st.markdown("---")
 st.markdown(_("© 2025 - Hệ thống tưới tiêu thông minh - Smart Irrigation System", "© 2025 - Smart Irrigation System"))
+
 
