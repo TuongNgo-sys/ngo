@@ -42,6 +42,29 @@ def save_json(path, data):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+# Hàm thêm record cảm biến vào history
+def add_history_record(sensor_hum, sensor_temp):
+    now_iso = datetime.now(vn_tz).isoformat()
+    new_record = {
+        "timestamp": now_iso,
+        "sensor_hum": sensor_hum,
+        "sensor_temp": sensor_temp
+    }
+    history = load_json(HISTORY_FILE, [])
+    history.append(new_record)
+    save_json(HISTORY_FILE, history)
+
+# Hàm thêm record lưu lượng vào flow_data
+def add_flow_record(flow_val):
+    now_iso = datetime.now(vn_tz).isoformat()
+    new_record = {
+        "time": now_iso,
+        "flow": flow_val
+    }
+    flow = load_json(FLOW_FILE, [])
+    flow.append(new_record)
+    save_json(FLOW_FILE, flow)
+
 # Load persistent data
 crop_data = load_json(DATA_FILE, {})
 history_data = load_json(HISTORY_FILE, [])
@@ -83,6 +106,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         st.stop()
     else:
         st.sidebar.success(_("✅ Xác thực thành công.", "✅ Authentication successful."))
+
 # -----------------------
 # Locations & crops (unchanged)
 # -----------------------
@@ -191,6 +215,7 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
         st.dataframe(df_plots)
     else:
         st.info(_("📍 Chưa có thông tin gieo trồng tại khu vực này.", "📍 No crop information available in this location."))
+
 # -----------------------
 # Mode and Watering Schedule (shared config.json)
 # -----------------------
@@ -266,6 +291,10 @@ st.write(f"{_('Độ ẩm đất (sim)', 'Soil Moisture (sim)')}: {simulated_soi
 st.write(f"{_('Ánh sáng (sim)', 'Light (sim)')}: {simulated_light} lux")
 st.write(f"{_('Lưu lượng nước (sim)', 'Water Flow (sim)')}: {simulated_water_flow} L/min")
 
+# --- LƯU DỮ LIỆU MỚI VÀO JSON ---
+add_history_record(simulated_soil_moisture, random.randint(20, 35))  # ví dụ nhiệt độ mô phỏng khác
+add_flow_record(simulated_water_flow)
+
 # -----------------------
 # Check watering schedule and mode for irrigation decision
 # -----------------------
@@ -282,92 +311,84 @@ is_in_watering_time = start_watering <= now_vn <= end_watering
 if is_in_watering_time:
     st.success(_("⏰ Hiện tại đang trong khung giờ tưới.", "⏰ Currently within watering schedule."))
 else:
-    st.info(_("⏰ Hiện tại không phải khung giờ tưới.", "⏰ Currently outside watering schedule."))
+    st.info(_("⏰ Hiện tại không trong khung giờ tưới.", "⏰ Currently outside watering schedule."))
 
-if mode_flag == "manual":
-    st.info(_("⚠️ Chế độ tưới thủ công đang bật, cần xác nhận bật bơm.", "⚠️ Manual mode is ON, pump activation requires confirmation."))
+st.write(f"Mode: **{config['mode']}**")
 
-    if is_in_watering_time:
-        if "pump_confirmed" not in st.session_state:
-            st.session_state.pump_confirmed = False
-        if not st.session_state.pump_confirmed:
-            st.warning(_("❗ Vui lòng xác nhận bật bơm trong vòng 5 phút.", "❗ Please confirm to turn on pump within 5 minutes."))
+# Tưới nếu soil moisture dưới ngưỡng (ví dụ 65%)
+should_water = simulated_soil_moisture < 65 and config["mode"] == "auto" and is_in_watering_time
 
-            col_confirm, col_cancel = st.columns(2)
-            with col_confirm:
-                if st.button(_("✅ Đồng ý bật bơm", "✅ Confirm to turn on pump")):
-                    st.session_state.pump_confirmed = True
-                    st.success(_("🚰 Bơm đã được bật!", "🚰 Pump is ON!"))
-                    # TODO: Gửi lệnh bật bơm tới ESP32-WROOM
-            with col_cancel:
-                if st.button(_("❌ Hủy bật bơm", "❌ Cancel pump activation")):
-                    st.session_state.pump_confirmed = False
-                    st.info(_("Bơm không được bật.", "Pump is NOT turned on."))
-
-        else:
-            st.success(_("🚰 Bơm đang hoạt động.", "🚰 Pump is running."))
-
+if should_water:
+    st.warning(_("⚠️ Cần tưới nước cho cây trồng.", "⚠️ Irrigation is needed for crops."))
 else:
-    # Auto mode
-    if is_in_watering_time:
-        st.success(_("🚿 Hệ thống tự động tưới trong khung giờ này.", "🚿 System is auto-watering during this schedule."))
-        # TODO: logic tưới tự động, gửi lệnh bật bơm tới ESP32-WROOM
+    st.info(_("💧 Không cần tưới nước lúc này.", "💧 No irrigation needed at this moment."))
 
+# -----------------------
+# Show historical charts (độ ẩm và lưu lượng)
+# -----------------------
+st.header(_("📊 Biểu đồ lịch sử độ ẩm, nhiệt độ, lưu lượng nước", "📊 Historical Charts"))
+
+# Chọn ngày hiển thị biểu đồ (mặc định ngày hiện tại)
+chart_date = st.date_input(_("Chọn ngày để xem dữ liệu", "Select date for chart"), value=date.today())
+
+# Load dữ liệu lịch sử từ JSON
+history_data = load_json(HISTORY_FILE, [])
+flow_data = load_json(FLOW_FILE, [])
+
+if len(history_data) == 0 or len(flow_data) == 0:
+    st.info(_("📋 Chưa có dữ liệu lịch sử để hiển thị.", "📋 No historical data to display."))
+else:
+    # Dùng pandas để lọc dữ liệu theo ngày
+    df_hist_all = pd.DataFrame(history_data)
+    if 'timestamp' in df_hist_all.columns:
+        df_hist_all['date'] = pd.to_datetime(df_hist_all['timestamp']).dt.date
+        df_day = df_hist_all[df_hist_all['date'] == chart_date]
     else:
-        st.info(_("🚿 Hệ thống không tưới ngoài khung giờ.", "🚿 System does not water outside schedule."))
+        df_day = pd.DataFrame()
 
-# -----------------------
-# Lịch sử tưới nước (unchanged)
-# -----------------------
-st.header(_("📜 Lịch sử tưới nước", "📜 Irrigation History"))
-if history_data:
-    df_hist = pd.DataFrame(history_data)
-    st.dataframe(df_hist)
-else:
-    st.info(_("Chưa có dữ liệu lịch sử tưới.", "No irrigation history data."))
-
-# -----------------------
-# Charts (Requirement 5 & 6)
-# - 5: comparison values as line chart (Ox=hour, Oy=value), selectable by date (from saved history)
-# - 6: line chart of water flow from flow_data.json (Ox=hour, Oy=flow), selectable by date
-# Update every 20 minutes (we set st_autorefresh earlier when in_compare_time)
-# -----------------------
-st.header(_("📊 Biểu đồ phân tích", "📊 Analysis Charts"))
-
-# pick date for charts
-chart_date = st.date_input(_("Chọn ngày để xem lịch sử (Biểu đồ)", "Choose date for charts"), value=date.today())
-
-# prepare comparison chart data (we'll use history sensor values)
-df_hist_all = pd.DataFrame(history_data) if history_data else pd.DataFrame()
-if not df_hist_all.empty:
-    # filter by date
-    df_hist_all['date'] = pd.to_datetime(df_hist_all['timestamp']).dt.date
-    df_day = df_hist_all[df_hist_all['date'] == chart_date]
-    if not df_day.empty:
-        # build times as x and values (we'll plot sensor_hum and temperature)
-        df_day['time_h'] = pd.to_datetime(df_day['timestamp']).dt.strftime("%H:%M:%S")
-        st.subheader(_("So sánh: Độ ẩm và Nhiệt độ theo thời gian", "Comparison: Humidity and Temperature over time"))
-        chart_df = df_day.set_index('time_h')[['sensor_hum','sensor_temp']].sort_index()
-        st.line_chart(chart_df)
+    df_flow_all = pd.DataFrame(flow_data)
+    if 'time' in df_flow_all.columns:
+        df_flow_all['date'] = pd.to_datetime(df_flow_all['time']).dt.date
+        df_flow_day = df_flow_all[df_flow_all['date'] == chart_date]
     else:
-        st.info(_("Không có dữ liệu lịch sử cho ngày này.", "No history data for this date."))
-else:
-    st.info(_("Chưa có dữ liệu lịch sử để vẽ biểu đồ.", "No history data to plot."))
+        df_flow_day = pd.DataFrame()
 
-# flow chart
-flow_df_all = pd.DataFrame(flow_data) if flow_data else pd.DataFrame()
-if not flow_df_all.empty:
-    flow_df_all['date'] = pd.to_datetime(flow_df_all['time']).dt.date
-    flow_day = flow_df_all[flow_df_all['date'] == chart_date]
-    if not flow_day.empty:
-        flow_day['time_h'] = pd.to_datetime(flow_day['time']).dt.strftime("%H:%M:%S")
-        st.subheader(_("📈 Lưu lượng nước tưới theo giờ", "📈 Water Flow over time"))
-        flow_chart_df = flow_day.set_index('time_h')[['flow']].sort_index()
-        st.line_chart(flow_chart_df)
+    if df_day.empty or df_flow_day.empty:
+        st.info(_("📋 Không có dữ liệu trong ngày này.", "📋 No data for selected date."))
     else:
-        st.info(_("Không có dữ liệu lưu lượng cho ngày này.", "No flow data for this date."))
-else:
-    st.info(_("Chưa có dữ liệu lưu lượng nước.", "No water flow data available."))
+        # Biểu đồ độ ẩm đất và nhiệt độ
+        import matplotlib.pyplot as plt
+
+        fig, ax1 = plt.subplots(figsize=(12, 5))
+        ax1.plot(pd.to_datetime(df_day['timestamp']), df_day['sensor_hum'], 'b-', label=_("Độ ẩm đất", "Soil Humidity"))
+        ax1.set_xlabel(_("Thời gian", "Time"))
+        ax1.set_ylabel(_("Độ ẩm đất (%)", "Soil Humidity (%)"), color='b')
+        ax1.tick_params(axis='y', labelcolor='b')
+
+        ax2 = ax1.twinx()
+        ax2.plot(pd.to_datetime(df_day['timestamp']), df_day['sensor_temp'], 'r-', label=_("Nhiệt độ", "Temperature"))
+        ax2.set_ylabel(_("Nhiệt độ (°C)", "Temperature (°C)"), color='r')
+        ax2.tick_params(axis='y', labelcolor='r')
+
+        ax1.legend(loc='upper left')
+        ax2.legend(loc='upper right')
+        plt.title(_("Lịch sử độ ẩm đất và nhiệt độ", "Soil Humidity and Temperature History"))
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        st.pyplot(fig)
+
+        # Biểu đồ lưu lượng nước
+        fig2, ax3 = plt.subplots(figsize=(12, 3))
+        ax3.plot(pd.to_datetime(df_flow_day['time']), df_flow_day['flow'], 'g-', label=_("Lưu lượng nước (L/min)", "Water Flow (L/min)"))
+        ax3.set_xlabel(_("Thời gian", "Time"))
+        ax3.set_ylabel(_("Lưu lượng nước (L/min)", "Water Flow (L/min)"), color='g')
+        ax3.tick_params(axis='y', labelcolor='g')
+        ax3.legend()
+        plt.title(_("Lịch sử lưu lượng nước", "Water Flow History"))
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        st.pyplot(fig2)
+
 
 # -----------------------
 # Footer
@@ -375,6 +396,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
