@@ -10,7 +10,7 @@ from streamlit_autorefresh import st_autorefresh
 import pytz
 import pandas as pd
 st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
-st_autorefresh(interval=3600 * 1000, key="refresh")
+st_autorefresh(interval=120 * 1000, key="refresh")
 
 
 #--- CHỌN NGÔN NGỮ ---
@@ -368,6 +368,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM")
 st.caption(" Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
