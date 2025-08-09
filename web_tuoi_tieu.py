@@ -193,6 +193,13 @@ if user_type == _("Người điều khiển", "Control Administrator"):
             st.success(_("Đã lưu thông tin trồng.", "Planting info saved."))
 
 if user_type == _("Người giám sát", " Monitoring Officer"):
+    st.header(_("👁️ Giám sát hệ thống", "👁️ System Monitoring"))
+
+    # 1. Chọn khu vực (giữ nguyên)
+    selected_city_display = st.selectbox(_("📍 Chọn khu vực để giám sát", "📍 Select monitoring location"), location_display_names)
+    selected_city = next(k for k, v in location_names.items() if v == selected_city_display)
+
+    # 2. Hiển thị thông tin cây trồng
     st.subheader(_("Thông tin cây trồng tại khu vực", "Plantings at this location"))
     if selected_city in crop_data and crop_data[selected_city].get("plots"):
         plots = crop_data[selected_city]["plots"]
@@ -208,21 +215,6 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
             harvest_min = pd_date + timedelta(days=min_d)
             harvest_max = pd_date + timedelta(days=max_d)
             days_planted = (date.today() - pd_date).days
-            def giai_doan_cay(crop, days):
-                if crop == "Chuối":
-                    if days <= 14: return _("🌱 Mới trồng", "🌱 Newly planted")
-                    elif days <= 180: return _("🌿 Phát triển", "🌿 Growing")
-                    elif days <= 330: return _("🌼 Ra hoa", "🌼 Flowering")
-                    else: return _("🍌 Đã thu hoạch", "🍌 Harvested")
-                elif crop == "Ngô":
-                    if days <= 25: return _("🌱 Mới trồng", "🌱 Newly planted")
-                    elif days <= 70: return _("🌿 Thụ phấn", "🌿 Pollination")
-                    elif days <= 100: return _("🌼 Trái phát triển", "🌼 Kernel growth")
-                    else: return _("🌽 Đã thu hoạch", "🌽 Harvested")
-                elif crop == "Ớt":
-                    if days <= 20: return _("🌱 Mới trồng", "🌱 Newly planted")
-                    elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
-                    else: return _("🌶️ Đã thu hoạch", "🌶️ Harvested")
             rows.append({
                 "crop": crop_names[crop_k],
                 "planting_date": pd_date.strftime("%d/%m/%Y"),
@@ -236,39 +228,72 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
     else:
         st.info(_("📍 Chưa có thông tin gieo trồng tại khu vực này.", "📍 No crop information available in this location."))
 
-    # Hiển thị lịch sử tưới theo khu vực
+    # 3. Hiển thị lịch sử tưới
     st.subheader(_("📜 Lịch sử tưới nước", "📜 Irrigation History"))
-    history = load_json(HISTORY_FILE, [])
-    filtered_history = [h for h in history if h.get("location") == selected_city]
-    if filtered_history:
-        df_history = pd.DataFrame(filtered_history)
-        if "timestamp" in df_history.columns:
-            df_history["timestamp"] = pd.to_datetime(df_history["timestamp"])
-            df_history = df_history.sort_values(by="timestamp", ascending=False)
-        st.dataframe(df_history)
+    irrigation_hist = load_json(HISTORY_FILE, [])
+    filtered_irrigation = [r for r in irrigation_hist if r.get("location") == selected_city]
+    if filtered_irrigation:
+        df_irrig = pd.DataFrame(filtered_irrigation)
+        if "start_time" in df_irrig.columns:
+            df_irrig["start_time"] = pd.to_datetime(df_irrig["start_time"])
+        if "end_time" in df_irrig.columns:
+            df_irrig["end_time"] = pd.to_datetime(df_irrig["end_time"])
+        st.dataframe(df_irrig.sort_values(by="start_time", ascending=False))
     else:
         st.info(_("Chưa có lịch sử tưới cho khu vực này.", "No irrigation history for this location."))
 
-    # Hiển thị biểu đồ độ ẩm đất và lưu lượng nước
-    st.subheader(_("📈 Biểu đồ dữ liệu cảm biến", "📈 Sensor Data Charts"))
+    # 4. Biểu đồ lịch sử độ ẩm đất và lưu lượng nước
+    st.header(_("📊 Biểu đồ lịch sử cảm biến", "📊 Sensor History Charts"))
 
-    soil_moisture_history = [h for h in history_data if h.get("location") == selected_city]
-    water_flow_history = [f for f in flow_data if f.get("location") == selected_city]
+    history_data = load_json(HISTORY_FILE, [])
+    flow_data = load_json(FLOW_FILE, [])
 
-    df_soil = to_df(soil_moisture_history)
-    df_flow = to_df(water_flow_history)
+    # Lọc dữ liệu lịch sử và lưu lượng theo khu vực
+    filtered_hist = [h for h in history_data if h.get("location") == selected_city]
+    filtered_flow = [f for f in flow_data if f.get("location") == selected_city]
 
-    if not df_soil.empty:
-        st.markdown(_("### Độ ẩm đất theo thời gian", "### Soil Moisture Over Time"))
-        st.line_chart(df_soil["sensor_hum"])
+    df_hist_all = pd.DataFrame(filtered_hist)
+    df_flow_all = pd.DataFrame(filtered_flow)
+
+    # Biểu đồ độ ẩm đất và nhiệt độ
+    if not df_hist_all.empty and 'timestamp' in df_hist_all.columns:
+        df_hist_all['timestamp'] = pd.to_datetime(df_hist_all['timestamp'], errors='coerce')
+        fig, ax1 = plt.subplots(figsize=(12, 5))
+        ax1.plot(df_hist_all['timestamp'], df_hist_all['sensor_hum'], 'b-', label=_("Độ ẩm đất", "Soil Humidity"))
+        ax1.set_xlabel(_("Thời gian", "Time"))
+        ax1.set_ylabel(_("Độ ẩm đất (%)", "Soil Humidity (%)"), color='b')
+        ax1.tick_params(axis='y', labelcolor='b')
+
+        ax2 = ax1.twinx()
+        ax2.plot(df_hist_all['timestamp'], df_hist_all['sensor_temp'], 'r-', label=_("Nhiệt độ", "Temperature"))
+        ax2.set_ylabel(_("Nhiệt độ (°C)", "Temperature (°C)"), color='r')
+        ax2.tick_params(axis='y', labelcolor='r')
+
+        ax1.legend(loc='upper left')
+        ax2.legend(loc='upper right')
+        plt.title(_("Lịch sử độ ẩm đất và nhiệt độ", "Soil Humidity and Temperature History"))
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        st.pyplot(fig)
     else:
-        st.info(_("Chưa có dữ liệu độ ẩm đất để hiển thị biểu đồ.", "No soil moisture data to display chart."))
+        st.info(_("Chưa có dữ liệu cảm biến cho khu vực này.", "No sensor data for this location."))
 
-    if not df_flow.empty:
-        st.markdown(_("### Lưu lượng nước theo thời gian", "### Water Flow Over Time"))
-        st.line_chart(df_flow["flow"])
+    # Biểu đồ lưu lượng nước
+    if not df_flow_all.empty and 'time' in df_flow_all.columns:
+        df_flow_all['time'] = pd.to_datetime(df_flow_all['time'], errors='coerce')
+        fig2, ax3 = plt.subplots(figsize=(12, 3))
+        ax3.plot(df_flow_all['time'], df_flow_all['flow'], 'g-', label=_("Lưu lượng nước (L/min)", "Water Flow (L/min)"))
+        ax3.set_xlabel(_("Thời gian", "Time"))
+        ax3.set_ylabel(_("Lưu lượng nước (L/min)", "Water Flow (L/min)"), color='g')
+        ax3.tick_params(axis='y', labelcolor='g')
+        ax3.legend()
+        plt.title(_("Lịch sử lưu lượng nước", "Water Flow History"))
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        st.pyplot(fig2)
     else:
-        st.info(_("Chưa có dữ liệu lưu lượng nước để hiển thị biểu đồ.", "No water flow data to display chart."))
+        st.info(_("Chưa có dữ liệu lưu lượng nước cho khu vực này.", "No water flow data for this location."))
+
 
 # -----------------------
 # Mode and Watering Schedule (shared config.json)
@@ -509,4 +534,5 @@ if user_type == _("Người điều khiển", "Control Administrator"):
 st.markdown("---")
 st.markdown(_("© 2025 Ngô Nguyễn Định Tường", "© 2025 Ngo Nguyen Dinh Tuong"))
 st.markdown(_("© 2025 Mai Phúc Khang", "© 2025 Mai Phuc Khang"))
+
 
