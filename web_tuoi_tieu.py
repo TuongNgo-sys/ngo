@@ -215,6 +215,21 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
             harvest_min = pd_date + timedelta(days=min_d)
             harvest_max = pd_date + timedelta(days=max_d)
             days_planted = (date.today() - pd_date).days
+            def giai_doan_cay(crop, days):
+                if crop == "Chuối":
+                    if days <= 14: return _("🌱 Mới trồng", "🌱 Newly planted")
+                    elif days <= 180: return _("🌿 Phát triển", "🌿 Growing")
+                    elif days <= 330: return _("🌼 Ra hoa", "🌼 Flowering")
+                    else: return _("🍌 Đã thu hoạch", "🍌 Harvested")
+                elif crop == "Ngô":
+                    if days <= 25: return _("🌱 Mới trồng", "🌱 Newly planted")
+                    elif days <= 70: return _("🌿 Thụ phấn", "🌿 Pollination")
+                    elif days <= 100: return _("🌼 Trái phát triển", "🌼 Kernel growth")
+                    else: return _("🌽 Đã thu hoạch", "🌽 Harvested")
+                elif crop == "Ớt":
+                    if days <= 20: return _("🌱 Mới trồng", "🌱 Newly planted")
+                    elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
+                    else: return _("🌶️ Đã thu hoạch", "🌶️ Harvested")
             rows.append({
                 "crop": crop_names[crop_k],
                 "planting_date": pd_date.strftime("%d/%m/%Y"),
@@ -534,5 +549,6 @@ if user_type == _("Người điều khiển", "Control Administrator"):
 st.markdown("---")
 st.markdown(_("© 2025 Ngô Nguyễn Định Tường", "© 2025 Ngo Nguyen Dinh Tuong"))
 st.markdown(_("© 2025 Mai Phúc Khang", "© 2025 Mai Phuc Khang"))
+
 
 
