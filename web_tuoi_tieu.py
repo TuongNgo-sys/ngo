@@ -68,7 +68,7 @@ except:
     st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))
 
 st.markdown(f"<h2 style='text-align: center; font-size: 50px;'>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
-st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }: {now.strftime('%d/%m/%Y %H:%M:%S')}</h3>", unsafe_allow_html=True)
+st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }: {now.strftime('%d/%m/%Y')}</h3>", unsafe_allow_html=True)
 
 # -----------------------
 # Sidebar - role, auth
@@ -83,35 +83,6 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         st.stop()
     else:
         st.sidebar.success(_("✅ Xác thực thành công.", "✅ Authentication successful."))
-
-# -----------------------
-# Mode and Watering Schedule (shared config.json)
-# -----------------------
-st.header(_("⚙️ Cấu hình chung hệ thống", "⚙️ System General Configuration"))
-
-if user_type == _("Người điều khiển", "Control Administrator"):
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(_("### ⏲️ Khung giờ tưới nước", "### ⏲️ Watering time window"))
-        start_time = st.time_input(_("Giờ bắt đầu", "Start time"), value=datetime.strptime(config["watering_schedule"].split("-")[0], "%H:%M").time())
-        end_time = st.time_input(_("Giờ kết thúc", "End time"), value=datetime.strptime(config["watering_schedule"].split("-")[1], "%H:%M").time())
-    with col2:
-        st.markdown(_("### 🔄 Chế độ hoạt động", "### 🔄 Operation mode"))
-        mode_sel = st.radio(_("Chọn chế độ", "Select mode"), [_("Auto", "Auto"), _("Manual", "Manual")], index=0 if config.get("mode","auto")=="auto" else 1)
-
-    if st.button(_("💾 Lưu cấu hình", "💾 Save configuration")):
-        # Save to config.json
-        config["watering_schedule"] = f"{start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}"
-        config["mode"] = "auto" if mode_sel == _("Auto", "Auto") else "manual"
-        save_json(CONFIG_FILE, config)
-        st.success(_("Đã lưu cấu hình.", "Configuration saved."))
-
-else:
-    st.markdown(_("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") + f" **{config['watering_schedule']}**")
-    st.markdown(_("🔄 Chế độ hoạt động hiện tại:", "🔄 Current operation mode:") + f" **{config['mode'].capitalize()}**")
-
-mode_flag = config.get("mode", "auto")
-
 # -----------------------
 # Locations & crops (unchanged)
 # -----------------------
@@ -220,6 +191,33 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
         st.dataframe(df_plots)
     else:
         st.info(_("📍 Chưa có thông tin gieo trồng tại khu vực này.", "📍 No crop information available in this location."))
+# -----------------------
+# Mode and Watering Schedule (shared config.json)
+# -----------------------
+st.header(_("⚙️ Cấu hình chung hệ thống", "⚙️ System General Configuration"))
+
+if user_type == _("Người điều khiển", "Control Administrator"):
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(_("### ⏲️ Khung giờ tưới nước", "### ⏲️ Watering time window"))
+        start_time = st.time_input(_("Giờ bắt đầu", "Start time"), value=datetime.strptime(config["watering_schedule"].split("-")[0], "%H:%M").time())
+        end_time = st.time_input(_("Giờ kết thúc", "End time"), value=datetime.strptime(config["watering_schedule"].split("-")[1], "%H:%M").time())
+    with col2:
+        st.markdown(_("### 🔄 Chế độ hoạt động", "### 🔄 Operation mode"))
+        mode_sel = st.radio(_("Chọn chế độ", "Select mode"), [_("Auto", "Auto"), _("Manual", "Manual")], index=0 if config.get("mode","auto")=="auto" else 1)
+
+    if st.button(_("💾 Lưu cấu hình", "💾 Save configuration")):
+        # Save to config.json
+        config["watering_schedule"] = f"{start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}"
+        config["mode"] = "auto" if mode_sel == _("Auto", "Auto") else "manual"
+        save_json(CONFIG_FILE, config)
+        st.success(_("Đã lưu cấu hình.", "Configuration saved."))
+
+else:
+    st.markdown(_("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") + f" **{config['watering_schedule']}**")
+    st.markdown(_("🔄 Chế độ hoạt động hiện tại:", "🔄 Current operation mode:") + f" **{config['mode'].capitalize()}**")
+
+mode_flag = config.get("mode", "auto")
 
 def giai_doan_cay(crop, days):
     if crop == "Chuối":
@@ -377,6 +375,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
