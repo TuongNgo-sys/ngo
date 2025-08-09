@@ -9,6 +9,7 @@ import os
 from streamlit_autorefresh import st_autorefresh
 import pytz
 import pandas as pd
+import paho.mqtt.client as mqtt
 
 # -----------------------
 # Config & helpers
@@ -225,25 +226,53 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     col1, col2 = st.columns(2)
     with col1:
         st.markdown(_("### ⏲️ Khung giờ tưới nước", "### ⏲️ Watering time window"))
-        start_time = st.time_input(_("Giờ bắt đầu", "Start time"), value=datetime.strptime(config["watering_schedule"].split("-")[0], "%H:%M").time())
-        end_time = st.time_input(_("Giờ kết thúc", "End time"), value=datetime.strptime(config["watering_schedule"].split("-")[1], "%H:%M").time())
+        start_time = st.time_input(
+            _("Giờ bắt đầu", "Start time"),
+            value=datetime.strptime(config["watering_schedule"].split("-")[0], "%H:%M").time(),
+        )
+        end_time = st.time_input(
+            _("Giờ kết thúc", "End time"),
+            value=datetime.strptime(config["watering_schedule"].split("-")[1], "%H:%M").time(),
+        )
     with col2:
-        st.markdown(_("### 🔄 Chế độ hoạt động", "### 🔄 Operation mode"))
-        mode_sel = st.radio(_("Chọn chế độ", "Select mode"), [_("Auto", "Auto"), _("Manual", "Manual")], index=0 if config.get("mode","auto")=="auto" else 1)
+        st.markdown(_("### 🔄 Chọn chế độ", "### 🔄 Select operation mode"))
+        main_mode = st.radio(
+            _("Chọn chế độ điều khiển", "Select control mode"),
+            [_("Tự động", "Automatic"), _("Thủ công", "Manual")],
+            index=0 if config.get("mode", "auto") == "auto" else 1,
+        )
+
+        manual_control_type = None
+        if main_mode == _("Thủ công", "Manual"):
+            manual_control_type = st.radio(
+                _("Chọn phương thức thủ công", "Select manual control type"),
+                [_("Thủ công trên app", "Manual on app"), _("Thủ công ở tủ điện", "Manual on cabinet")],
+            )
 
     if st.button(_("💾 Lưu cấu hình", "💾 Save configuration")):
-        # Save to config.json
         config["watering_schedule"] = f"{start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}"
-        config["mode"] = "auto" if mode_sel == _("Auto", "Auto") else "manual"
+        if main_mode == _("Tự động", "Automatic"):
+            config["mode"] = "auto"
+            config.pop("manual_control_type", None)
+        else:
+            config["mode"] = "manual"
+            config["manual_control_type"] = manual_control_type
         save_json(CONFIG_FILE, config)
         st.success(_("Đã lưu cấu hình.", "Configuration saved."))
 
 else:
-    st.markdown(_("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") + f" **{config['watering_schedule']}**")
-    st.markdown(_("🔄 Chế độ hoạt động hiện tại:", "🔄 Current operation mode:") + f" **{config['mode'].capitalize()}**")
-
-mode_flag = config.get("mode", "auto")
-
+    st.markdown(
+        _("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") + f" **{config['watering_schedule']}**"
+    )
+    mode_display = _("Tự động", "Automatic") if config.get("mode", "auto") == "auto" else _("Thủ công", "Manual")
+    st.markdown(_("🔄 Chế độ hoạt động hiện tại:", "🔄 Current operation mode:") + f" **{mode_display}**")
+    if config.get("mode") == "manual":
+        manual_type_display = config.get("manual_control_type", "")
+        if manual_type_display == _("Thủ công trên app", "Manual on app") or manual_type_display == "Manual on app":
+            st.markdown(_("⚙️ Phương thức thủ công: Thủ công trên app", "⚙️ Manual method: Manual on app"))
+        elif manual_type_display == _("Thủ công ở tủ điện", "Manual on cabinet") or manual_type_display == "Manual on cabinet":
+            st.markdown(_("⚙️ Phương thức thủ công: Thủ công ở tủ điện", "⚙️ Manual method: Manual on cabinet"))
+#------------------------------------------
 def giai_doan_cay(crop, days):
     if crop == "Chuối":
         if days <= 14: return _("🌱 Mới trồng", "🌱 Newly planted")
@@ -298,31 +327,42 @@ add_flow_record(simulated_water_flow)
 # -----------------------
 # Check watering schedule and mode for irrigation decision
 # -----------------------
-st.header(_("🚿 Quyết định tưới nước", "🚿 Irrigation decision"))
+mode_flag = config.get("mode", "auto")
+manual_control_type = config.get("manual_control_type", None)
 
-start_str, end_str = config["watering_schedule"].split("-")
-start_watering = datetime.combine(date.today(), datetime.strptime(start_str, "%H:%M").time()).replace(tzinfo=vn_tz)
-end_watering = datetime.combine(date.today(), datetime.strptime(end_str, "%H:%M").time()).replace(tzinfo=vn_tz)
+should_water = False
+if mode_flag == "auto":
+    # Tự động tưới theo soil moisture và khung giờ
+    should_water = simulated_soil_moisture < 65 and is_in_watering_time
+elif mode_flag == "manual":
+    if manual_control_type == _("Thủ công trên app", "Manual on app") or manual_control_type == "Manual on app":
+        st.warning(_("⚠️ Đang ở chế độ thủ công trên app. Bạn có thể bật hoặc tắt bơm thủ công.", "⚠️ Manual control on app. You can turn pump ON or OFF manually."))
 
-now_vn = datetime.now(vn_tz)
+        col_on, col_off = st.columns(2)
+        with col_on:
+            if st.button(_("Bật bơm thủ công", "Turn ON pump manually")):
+                # TODO: Gửi lệnh bật bơm qua MQTT hoặc HTTP
+                st.success(_("Đã gửi lệnh bật bơm", "Sent command to turn ON pump"))
+        with col_off:
+            if st.button(_("Tắt bơm thủ công", "Turn OFF pump manually")):
+                # TODO: Gửi lệnh tắt bơm qua MQTT hoặc HTTP
+                st.success(_("Đã gửi lệnh tắt bơm", "Sent command to turn OFF pump"))
 
-is_in_watering_time = start_watering <= now_vn <= end_watering
-
-if is_in_watering_time:
-    st.success(_("⏰ Hiện tại đang trong khung giờ tưới.", "⏰ Currently within watering schedule."))
-else:
-    st.info(_("⏰ Hiện tại không trong khung giờ tưới.", "⏰ Currently outside watering schedule."))
-
-st.write(f"Mode: **{config['mode']}**")
-
-# Tưới nếu soil moisture dưới ngưỡng (ví dụ 65%)
-should_water = simulated_soil_moisture < 65 and config["mode"] == "auto" and is_in_watering_time
+        should_water = False  # Tạm không tự động tưới khi thủ công app
+    else:
+        # Thủ công ở tủ điện thì không bật bơm trên app được
+        st.info(
+            _(
+                "Chế độ thủ công ở tủ điện, không thể điều khiển bơm trên app. Vui lòng thao tác trên tủ điện.",
+                "Manual mode on cabinet, cannot control pump on app. Please operate on cabinet.",
+            )
+        )
+        should_water = False
 
 if should_water:
     st.warning(_("⚠️ Cần tưới nước cho cây trồng.", "⚠️ Irrigation is needed for crops."))
 else:
     st.info(_("💧 Không cần tưới nước lúc này.", "💧 No irrigation needed at this moment."))
-
 # -----------------------
 # Show historical charts (độ ẩm và lưu lượng)
 # -----------------------
@@ -391,14 +431,59 @@ else:
         plt.xticks(rotation=45)
         plt.tight_layout()
         st.pyplot(fig2)
+import threading
+import paho.mqtt.client as mqtt
 
+# MQTT Broker config
+MQTT_BROKER = "test.mosquitto.org"
+MQTT_PORT = 1883
+TOPIC_DATA = "smart_irrigation/sensor_data"
+TOPIC_COMMAND = "smart_irrigation/command"
 
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        print("MQTT connected successfully")
+        client.subscribe(TOPIC_DATA)
+    else:
+        print(f"MQTT failed to connect, return code {rc}")
+
+def on_message(client, userdata, msg):
+    try:
+        payload_str = msg.payload.decode()
+        print(f"MQTT message received on {msg.topic}: {payload_str}")
+        data = json.loads(payload_str)
+
+        soil_moisture = data.get("soil_moisture", 100)
+
+        # Đơn giản: nếu độ ẩm đất < 65, gửi lệnh bật bơm, ngược lại tắt bơm
+        if soil_moisture < 65:
+            print("Soil moisture low, sending pump_on command")
+            client.publish(TOPIC_COMMAND, "pump_on")
+        else:
+            print("Soil moisture sufficient, sending pump_off command")
+            client.publish(TOPIC_COMMAND, "pump_off")
+    except Exception as e:
+        print(f"Error processing MQTT message: {e}")
+
+def mqtt_thread():
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_message = on_message
+    try:
+        client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        client.loop_forever()
+    except Exception as e:
+        print(f"MQTT connection error: {e}")
+
+# Start MQTT client in background thread
+threading.Thread(target=mqtt_thread, daemon=True).start()
 # -----------------------
 # Footer
 # -----------------------
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
