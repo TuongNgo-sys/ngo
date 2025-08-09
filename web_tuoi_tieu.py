@@ -1,7 +1,6 @@
 # web_esp.py
 import streamlit as st
 from datetime import datetime, timedelta, date, time
-import random
 from PIL import Image
 import requests
 import json
@@ -9,7 +8,9 @@ import os
 from streamlit_autorefresh import st_autorefresh
 import pytz
 import pandas as pd
+import threading
 import paho.mqtt.client as mqtt
+import matplotlib.pyplot as plt
 
 # -----------------------
 # Config & helpers
@@ -145,6 +146,8 @@ crop_names = {"Ngô": _("Ngô", "Corn"), "Chuối": _("Chuối", "Banana"), "Ớ
 # -----------------------
 st.header(_("🌱 Quản lý cây trồng", "🌱 Crop Management"))
 
+mode_flag = config.get("mode", "auto")
+
 if user_type == _("Người điều khiển", "Control Administrator"):
     st.subheader(_("Thêm / Cập nhật vùng trồng", "Add / Update Plantings"))
     multiple = st.checkbox(_("Trồng nhiều loại trên khu vực này", "Plant multiple crops in this location"), value=False)
@@ -189,6 +192,7 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
             harvest_min = pd_date + timedelta(days=min_d)
             harvest_max = pd_date + timedelta(days=max_d)
             days_planted = (date.today() - pd_date).days
+
             def giai_doan_cay(crop, days):
                 if crop == "Chuối":
                     if days <= 14: return _("🌱 Mới trồng", "🌱 Newly planted")
@@ -204,6 +208,7 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
                     if days <= 20: return _("🌱 Mới trồng", "🌱 Newly planted")
                     elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
                     else: return _("🌶️ Đã thu hoạch", "🌶️ Harvested")
+
             rows.append({
                 "crop": crop_names[crop_k],
                 "planting_date": pd_date.strftime("%d/%m/%Y"),
@@ -272,68 +277,40 @@ else:
             st.markdown(_("⚙️ Phương thức thủ công: Thủ công trên app", "⚙️ Manual method: Manual on app"))
         elif manual_type_display == _("Thủ công ở tủ điện", "Manual on cabinet") or manual_type_display == "Manual on cabinet":
             st.markdown(_("⚙️ Phương thức thủ công: Thủ công ở tủ điện", "⚙️ Manual method: Manual on cabinet"))
-#------------------------------------------
-def giai_doan_cay(crop, days):
-    if crop == "Chuối":
-        if days <= 14: return _("🌱 Mới trồng", "🌱 Newly planted")
-        elif days <= 180: return _("🌿 Phát triển", "🌿 Growing")
-        elif days <= 330: return _("🌼 Ra hoa", "🌼 Flowering")
-        else: return _("🍌 Đã thu hoạch", "🍌 Harvested")
-    elif crop == "Ngô":
-        if days <= 25: return _("🌱 Mới trồng", "🌱 Newly planted")
-        elif days <= 70: return _("🌿 Thụ phấn", "🌿 Pollination")
-        elif days <= 100: return _("🌼 Trái phát triển", "🌼 Kernel growth")
-        else: return _("🌽 Đã thu hoạch", "🌽 Harvested")
-    elif crop == "Ớt":
-        if days <= 20: return _("🌱 Mới trồng", "🌱 Newly planted")
-        elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
-        else: return _("🌶️ Đã thu hoạch", "🌶️ Harvested")
 
 # -----------------------
-# Weather API (unchanged)
+# Hiển thị dữ liệu cảm biến thực tế từ ESP32 (không mô phỏng)
 # -----------------------
-st.subheader(_("🌦️ Thời tiết hiện tại", "🌦️ Current Weather"))
-weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability&timezone=auto"
-try:
-    response = requests.get(weather_url, timeout=10)
-    response.raise_for_status()
-    weather_data = response.json()
-    current_weather = weather_data.get("current", {})
-except Exception as e:
-    st.error(f"❌ {_('Lỗi khi tải dữ liệu thời tiết', 'Error loading weather data')}: {str(e)}")
-    current_weather = {"temperature_2m": "N/A", "relative_humidity_2m": "N/A", "precipitation": "N/A", "precipitation_probability": "N/A"}
+st.subheader(_("📡 Dữ liệu cảm biến thực tế từ ESP32", "📡 Real Sensor Data from ESP32"))
 
-col1, col2, col3 = st.columns(3)
-col1.metric("🌡️ " + _("Nhiệt độ", "Temperature"), f"{current_weather.get('temperature_2m', 'N/A')} °C")
-col2.metric("💧 " + _("Độ ẩm", "Humidity"), f"{current_weather.get('relative_humidity_2m', 'N/A')} %")
-col3.metric("☔ " + _("Khả năng mưa", "Precipitation Prob."), f"{current_weather.get('precipitation_probability', 'N/A')} %")
+if len(history_data) == 0 or len(flow_data) == 0:
+    st.info(_("⚠️ Chưa nhận được dữ liệu cảm biến từ ESP32.", "⚠️ No sensor data received from ESP32 yet."))
+else:
+    latest_record = history_data[-1]
+    st.write(f"{_('Độ ẩm đất', 'Soil Moisture')}: {latest_record.get('sensor_hum', 'N/A')}%")
+    st.write(f"{_('Nhiệt độ đất', 'Soil Temperature')}: {latest_record.get('sensor_temp', 'N/A')} °C")
 
 # -----------------------
-# Sensor Data Simulation (for demo)
+# Quyết định tưới dựa trên dữ liệu thực tế
 # -----------------------
-st.subheader(_("📡 Dữ liệu cảm biến (mô phỏng)", "📡 Sensor Data (Simulated)"))
-simulated_soil_moisture = random.randint(40, 80)
-simulated_light = random.randint(100, 1000)
-simulated_water_flow = random.randint(0, 100)
+current_time = datetime.now(vn_tz).time()
+start_time = datetime.strptime(config["watering_schedule"].split("-")[0], "%H:%M").time()
+end_time = datetime.strptime(config["watering_schedule"].split("-")[1], "%H:%M").time()
+is_in_watering_time = start_time <= current_time <= end_time
 
-st.write(f"{_('Độ ẩm đất (sim)', 'Soil Moisture (sim)')}: {simulated_soil_moisture}%")
-st.write(f"{_('Ánh sáng (sim)', 'Light (sim)')}: {simulated_light} lux")
-st.write(f"{_('Lưu lượng nước (sim)', 'Water Flow (sim)')}: {simulated_water_flow} L/min")
-
-# --- LƯU DỮ LIỆU MỚI VÀO JSON ---
-add_history_record(simulated_soil_moisture, random.randint(20, 35))  # ví dụ nhiệt độ mô phỏng khác
-add_flow_record(simulated_water_flow)
-
-# -----------------------
-# Check watering schedule and mode for irrigation decision
-# -----------------------
-mode_flag = config.get("mode", "auto")
-manual_control_type = config.get("manual_control_type", None)
+if len(history_data) > 0:
+    current_soil_moisture = history_data[-1].get("sensor_hum", None)
+else:
+    current_soil_moisture = None
 
 should_water = False
+
 if mode_flag == "auto":
-    # Tự động tưới theo soil moisture và khung giờ
-    should_water = simulated_soil_moisture < 65 and is_in_watering_time
+    if current_soil_moisture is not None:
+        should_water = current_soil_moisture < 65 and is_in_watering_time
+    else:
+        st.warning(_("⚠️ Chưa có dữ liệu độ ẩm đất để quyết định tưới.", "⚠️ No soil moisture data to make irrigation decision."))
+
 elif mode_flag == "manual":
     if manual_control_type == _("Thủ công trên app", "Manual on app") or manual_control_type == "Manual on app":
         st.warning(_("⚠️ Đang ở chế độ thủ công trên app. Bạn có thể bật hoặc tắt bơm thủ công.", "⚠️ Manual control on app. You can turn pump ON or OFF manually."))
@@ -348,9 +325,8 @@ elif mode_flag == "manual":
                 # TODO: Gửi lệnh tắt bơm qua MQTT hoặc HTTP
                 st.success(_("Đã gửi lệnh tắt bơm", "Sent command to turn OFF pump"))
 
-        should_water = False  # Tạm không tự động tưới khi thủ công app
+        should_water = False
     else:
-        # Thủ công ở tủ điện thì không bật bơm trên app được
         st.info(
             _(
                 "Chế độ thủ công ở tủ điện, không thể điều khiển bơm trên app. Vui lòng thao tác trên tủ điện.",
@@ -363,22 +339,17 @@ if should_water:
     st.warning(_("⚠️ Cần tưới nước cho cây trồng.", "⚠️ Irrigation is needed for crops."))
 else:
     st.info(_("💧 Không cần tưới nước lúc này.", "💧 No irrigation needed at this moment."))
+
 # -----------------------
-# Show historical charts (độ ẩm và lưu lượng)
+# Biểu đồ lịch sử độ ẩm, nhiệt độ, lưu lượng nước
 # -----------------------
 st.header(_("📊 Biểu đồ lịch sử độ ẩm, nhiệt độ, lưu lượng nước", "📊 Historical Charts"))
 
-# Chọn ngày hiển thị biểu đồ (mặc định ngày hiện tại)
 chart_date = st.date_input(_("Chọn ngày để xem dữ liệu", "Select date for chart"), value=date.today())
-
-# Load dữ liệu lịch sử từ JSON
-history_data = load_json(HISTORY_FILE, [])
-flow_data = load_json(FLOW_FILE, [])
 
 if len(history_data) == 0 or len(flow_data) == 0:
     st.info(_("📋 Chưa có dữ liệu lịch sử để hiển thị.", "📋 No historical data to display."))
 else:
-    # Dùng pandas để lọc dữ liệu theo ngày
     df_hist_all = pd.DataFrame(history_data)
     if 'timestamp' in df_hist_all.columns:
         df_hist_all['timestamp'] = pd.to_datetime(df_hist_all['timestamp'], errors='coerce')
@@ -396,12 +367,11 @@ else:
         df_flow_day = df_flow_all[df_flow_all['date'] == chart_date]
     else:
         df_flow_day = pd.DataFrame()
+
     if df_day.empty or df_flow_day.empty:
         st.info(_("📋 Không có dữ liệu trong ngày này.", "📋 No data for selected date."))
     else:
         # Biểu đồ độ ẩm đất và nhiệt độ
-        import matplotlib.pyplot as plt
-
         fig, ax1 = plt.subplots(figsize=(12, 5))
         ax1.plot(pd.to_datetime(df_day['timestamp']), df_day['sensor_hum'], 'b-', label=_("Độ ẩm đất", "Soil Humidity"))
         ax1.set_xlabel(_("Thời gian", "Time"))
@@ -431,64 +401,44 @@ else:
         plt.xticks(rotation=45)
         plt.tight_layout()
         st.pyplot(fig2)
-import threading
-import paho.mqtt.client as mqtt
 
-# MQTT Broker config
-MQTT_BROKER = "test.mosquitto.org"
+# -----------------------
+# MQTT Client để nhận dữ liệu ESP32 (nền)
+# -----------------------
+MQTT_BROKER = "broker.hivemq.com"
 MQTT_PORT = 1883
-TOPIC_DATA = "smart_irrigation/sensor_data"
-TOPIC_COMMAND = "smart_irrigation/command"
+MQTT_TOPIC_SENSOR = "esp32/sensor"
+MQTT_TOPIC_FLOW = "esp32/flow"
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        print("MQTT connected successfully")
-        client.subscribe(TOPIC_DATA)
+        client.subscribe(MQTT_TOPIC_SENSOR)
+        client.subscribe(MQTT_TOPIC_FLOW)
     else:
-        print(f"MQTT failed to connect, return code {rc}")
+        print("MQTT Connection failed, rc=", rc)
 
 def on_message(client, userdata, msg):
     try:
-        payload_str = msg.payload.decode()
-        print(f"MQTT message received on {msg.topic}: {payload_str}")
-        data = json.loads(payload_str)
-
-        soil_moisture = data.get("soil_moisture", 100)
-
-        # Đơn giản: nếu độ ẩm đất < 65, gửi lệnh bật bơm, ngược lại tắt bơm
-        if soil_moisture < 65:
-            print("Soil moisture low, sending pump_on command")
-            client.publish(TOPIC_COMMAND, "pump_on")
-        else:
-            print("Soil moisture sufficient, sending pump_off command")
-            client.publish(TOPIC_COMMAND, "pump_off")
+        payload = json.loads(msg.payload.decode())
+        if msg.topic == MQTT_TOPIC_SENSOR:
+            hum = payload.get("soil_moisture")
+            temp = payload.get("soil_temperature")
+            if hum is not None and temp is not None:
+                add_history_record(hum, temp)
+        elif msg.topic == MQTT_TOPIC_FLOW:
+            flow = payload.get("flow")
+            if flow is not None:
+                add_flow_record(flow)
     except Exception as e:
-        print(f"Error processing MQTT message: {e}")
+        print("MQTT message error:", e)
 
-def mqtt_thread():
-    client = mqtt.Client()
-    client.on_connect = on_connect
-    client.on_message = on_message
-    try:
-        client.connect(MQTT_BROKER, MQTT_PORT, 60)
-        client.loop_forever()
-    except Exception as e:
-        print(f"MQTT connection error: {e}")
+client = mqtt.Client()
+client.on_connect = on_connect
+client.on_message = on_message
 
-# Start MQTT client in background thread
-threading.Thread(target=mqtt_thread, daemon=True).start()
-# -----------------------
-# Footer
-# -----------------------
-st.markdown("---")
-st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
-st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+def mqtt_loop():
+    client.connect(MQTT_BROKER, MQTT_PORT, 60)
+    client.loop_forever()
 
-
-
-
-
-
-
-
-
+# Chạy MQTT thread nền
+threading.Thread(target=mqtt_loop, daemon=True).start()
