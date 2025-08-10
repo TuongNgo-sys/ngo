@@ -250,7 +250,19 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     with col2:
         st.markdown(_("### 🔄 Chế độ hoạt động", "### 🔄 Operation mode"))
         mode_sel = st.radio(_("Chọn chế độ", "Select mode"), [_("Auto", "Auto"), _("Manual", "Manual")], index=0 if config.get("mode","auto")=="auto" else 1)
-        st.subheader(_("⚙️ Cấu hình ngưỡng độ ẩm cho cây trồng", "⚙️ Soil Moisture Threshold Configuration"))
+       
+    if st.button(_("💾 Lưu cấu hình", "💾 Save configuration")):
+        # Save to config.json
+        config["watering_schedule"] = f"{start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}"
+        config["mode"] = "auto" if mode_sel == _("Auto", "Auto") else "manual"
+        save_json(CONFIG_FILE, config)
+        st.success(_("Đã lưu cấu hình.", "Configuration saved."))
+
+else:
+    st.markdown(_("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") + f" **{config['watering_schedule']}**")
+    st.markdown(_("🔄 Chế độ hoạt động hiện tại:", "🔄 Current operation mode:") + f" **{config['mode'].capitalize()}**")
+
+st.subheader(_("⚙️ Cấu hình ngưỡng độ ẩm cho cây trồng", "⚙️ Soil Moisture Threshold Configuration"))
         for crop_key, crop_display in crop_names.items():
             val = st.number_input(
                 f"{_('Ngưỡng độ ẩm đất cho', 'Soil moisture threshold for')} {crop_display}",
@@ -267,17 +279,6 @@ if user_type == _("Người điều khiển", "Control Administrator"):
             save_json(CONFIG_FILE, config)
             st.success(_("Đã lưu ngưỡng độ ẩm.", "Moisture thresholds saved."))
 
-
-    if st.button(_("💾 Lưu cấu hình", "💾 Save configuration")):
-        # Save to config.json
-        config["watering_schedule"] = f"{start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}"
-        config["mode"] = "auto" if mode_sel == _("Auto", "Auto") else "manual"
-        save_json(CONFIG_FILE, config)
-        st.success(_("Đã lưu cấu hình.", "Configuration saved."))
-
-else:
-    st.markdown(_("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") + f" **{config['watering_schedule']}**")
-    st.markdown(_("🔄 Chế độ hoạt động hiện tại:", "🔄 Current operation mode:") + f" **{config['mode'].capitalize()}**")
 
 mode_flag = config.get("mode", "auto")
 
@@ -483,6 +484,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
