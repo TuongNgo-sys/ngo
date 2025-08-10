@@ -87,6 +87,9 @@ crop_data = load_json(DATA_FILE, {})
 history_data = load_json(HISTORY_FILE, [])
 flow_data = load_json(FLOW_FILE, [])
 config = load_json(CONFIG_FILE, {"watering_schedule": "06:00-08:00", "mode": "auto"})
+if "moisture_thresholds" not in config:
+    config["moisture_thresholds"] = {"Ngô": 65, "Chuối": 70, "Ớt": 65}
+moisture_thresholds = config["moisture_thresholds"]
 
 # timezone
 vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
@@ -247,6 +250,23 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     with col2:
         st.markdown(_("### 🔄 Chế độ hoạt động", "### 🔄 Operation mode"))
         mode_sel = st.radio(_("Chọn chế độ", "Select mode"), [_("Auto", "Auto"), _("Manual", "Manual")], index=0 if config.get("mode","auto")=="auto" else 1)
+        st.subheader(_("⚙️ Cấu hình ngưỡng độ ẩm cho cây trồng", "⚙️ Soil Moisture Threshold Configuration"))
+        for crop_key, crop_display in crop_names.items():
+            val = st.number_input(
+                f"{_('Ngưỡng độ ẩm đất cho', 'Soil moisture threshold for')} {crop_display}",
+                min_value=0,
+                max_value=100,
+                value=moisture_thresholds.get(crop_key, 65),
+                step=1,
+                key=f"moisture_threshold_{crop_key}"
+    )
+            moisture_thresholds[crop_key] = val
+
+        if st.button(_("💾 Lưu ngưỡng độ ẩm", "💾 Save moisture thresholds")):
+            config["moisture_thresholds"] = moisture_thresholds
+            save_json(CONFIG_FILE, config)
+            st.success(_("Đã lưu ngưỡng độ ẩm.", "Moisture thresholds saved."))
+
 
     if st.button(_("💾 Lưu cấu hình", "💾 Save configuration")):
         # Save to config.json
@@ -463,6 +483,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
