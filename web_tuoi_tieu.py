@@ -27,7 +27,10 @@ def _(vi_text, en_text=None):
     Nếu truyền 2 tham số, sẽ chọn theo ngôn ngữ đang chọn.
     Mặc định tiếng Việt nếu biến vi chưa tồn tại.
     """
-    vi_lang = globals().get('vi', True)
+    try:
+        vi_lang = globals().get('vi', True)
+    except NameError:
+        vi_lang = True
     if en_text is None:
         return vi_text
     return vi_text if vi_lang else en_text
