@@ -263,7 +263,7 @@ else:
     st.markdown(_("🔄 Chế độ hoạt động hiện tại:", "🔄 Current operation mode:") + f" **{config['mode'].capitalize()}**")
 
 st.subheader(_("⚙️ Cấu hình ngưỡng độ ẩm cho cây trồng", "⚙️ Soil Moisture Threshold Configuration"))
-        for crop_key, crop_display in crop_names.items():
+for crop_key, crop_display in crop_names.items():
             val = st.number_input(
                 f"{_('Ngưỡng độ ẩm đất cho', 'Soil moisture threshold for')} {crop_display}",
                 min_value=0,
@@ -274,7 +274,7 @@ st.subheader(_("⚙️ Cấu hình ngưỡng độ ẩm cho cây trồng", "⚙�
     )
             moisture_thresholds[crop_key] = val
 
-        if st.button(_("💾 Lưu ngưỡng độ ẩm", "💾 Save moisture thresholds")):
+if st.button(_("💾 Lưu ngưỡng độ ẩm", "💾 Save moisture thresholds")):
             config["moisture_thresholds"] = moisture_thresholds
             save_json(CONFIG_FILE, config)
             st.success(_("Đã lưu ngưỡng độ ẩm.", "Moisture thresholds saved."))
@@ -385,16 +385,34 @@ else:
 st.write(f"Mode: **{config['mode']}**")
 
 # Tưới nếu soil moisture dưới ngưỡng (ví dụ 65%)
+# Lấy loại cây để lấy ngưỡng (nên là cây đang chọn)
+# Nếu khu vực có nhiều loại cây, bạn cần logic khác để lấy ngưỡng phù hợp
+
+selected_crop = None
+if user_type == _("Người điều khiển", "Control Administrator"):
+    # Lấy cây trồng từ crop_data của khu vực
+    if selected_city in crop_data and crop_data[selected_city].get("plots"):
+        selected_crop = crop_data[selected_city]["plots"][0]["crop"]
+    else:
+        selected_crop = None
+else:
+    # Người giám sát không có quyền chỉnh, vẫn lấy cây để hiển thị
+    if selected_city in crop_data and crop_data[selected_city].get("plots"):
+        selected_crop = crop_data[selected_city]["plots"][0]["crop"]
+
+threshold = moisture_thresholds.get(selected_crop, 65) if selected_crop else 65
+
+# soil_moisture: đổi từ simulated_soil_moisture thành dữ liệu thật (đang lấy từ ESP32)
+# ví dụ giả sử biến soil_moisture là dữ liệu nhận được từ esp32 (nếu có)
+
+soil_moisture = None  # bạn cần thay bằng dữ liệu thật
+
 if soil_moisture is not None:
-    should_water = soil_moisture < 65 and config["mode"] == "auto" and is_in_watering_time
+    should_water = soil_moisture < threshold and config["mode"] == "auto" and is_in_watering_time
 else:
     should_water = False
     st.warning(_("Không có dữ liệu độ ẩm đất để quyết định tưới.", "No soil moisture data for irrigation decision."))
 
-if should_water:
-    st.warning(_("⚠️ Cần tưới nước cho cây trồng.", "⚠️ Irrigation is needed for crops."))
-else:
-    st.info(_("💧 Không cần tưới nước lúc này.", "💧 No irrigation needed at this moment."))
 
 # -----------------------
 # Show historical charts (độ ẩm và lưu lượng)
@@ -484,6 +502,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
