@@ -21,7 +21,14 @@ st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
 # --- I18N ---
 lang = st.sidebar.selectbox("🌐 Language / Ngôn ngữ", ["Tiếng Việt", "English"])
 vi = lang == "Tiếng Việt"
-def _(vi_text, en_text):
+def _(vi_text, en_text=None):
+    """Hàm hỗ trợ hiển thị song ngữ.
+    Nếu chỉ truyền 1 tham số, sẽ dùng nguyên văn.
+    Nếu truyền 2 tham số, sẽ chọn theo ngôn ngữ đang chọn.
+    """
+    if en_text is None:
+        return vi_text
+    return vi_text if vi else en_text
     return vi_text if vi else en_text
 
 # Files
