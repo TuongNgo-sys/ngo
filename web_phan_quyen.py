@@ -382,7 +382,10 @@ now_time = datetime.now(vn_tz).replace(tzinfo=None)
 
 is_in_watering_time = watering_start <= now_time <= watering_end
 
-soil_moisture = sensor_data.get("soil_moisture")
+if sensor_data is not None:
+    soil_moisture = sensor_data.get("soil_moisture")
+else:
+    soil_moisture = None
 
 # Lấy cây trồng đầu tiên trong khu vực để lấy ngưỡng
 selected_crop_for_decision = None
@@ -442,6 +445,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
