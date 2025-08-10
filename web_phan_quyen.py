@@ -297,20 +297,51 @@ col2.metric("💧 " + _("Độ ẩm", "Humidity"), f"{current_weather.get('relat
 col3.metric("☔ " + _("Khả năng mưa", "Precipitation Prob."), f"{current_weather.get('precipitation_probability', 'N/A')} %")
 
 # -----------------------
-# Sensor Data Simulation (for demo)
+# Lấy dữ liệu cảm biến thực từ ESP32-WROOM (MQTT hoặc HTTP)
 # -----------------------
-st.subheader(_("📡 Dữ liệu cảm biến (mô phỏng)", "📡 Sensor Data (Simulated)"))
-simulated_soil_moisture = random.randint(40, 80)
-simulated_light = random.randint(100, 1000)
-simulated_water_flow = random.randint(0, 100)
+st.subheader(_("📡 Dữ liệu cảm biến thực tế từ ESP32", "📡 Real Sensor Data from ESP32"))
 
-st.write(f"{_('Độ ẩm đất (sim)', 'Soil Moisture (sim)')}: {simulated_soil_moisture}%")
-st.write(f"{_('Ánh sáng (sim)', 'Light (sim)')}: {simulated_light} lux")
-st.write(f"{_('Lưu lượng nước (sim)', 'Water Flow (sim)')}: {simulated_water_flow} L/min")
+# Giả định bạn có một file JSON cập nhật liên tục hoặc 1 biến toàn cục lưu dữ liệu cảm biến mới nhất
+# Ví dụ bạn có thể lưu dữ liệu từ ESP32 vào file sensor_data.json (cập nhật qua MQTT hoặc HTTP POST)
+SENSOR_DATA_FILE = "sensor_data.json"
 
-# --- LƯU DỮ LIỆU MỚI VÀO JSON ---
-add_history_record(simulated_soil_moisture, random.randint(20, 35))  # ví dụ nhiệt độ mô phỏng khác
-add_flow_record(simulated_water_flow)
+def load_sensor_data():
+    if os.path.exists(SENSOR_DATA_FILE):
+        try:
+            with open(SENSOR_DATA_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data
+        except Exception as e:
+            st.error(_("Lỗi khi đọc dữ liệu cảm biến từ file.", "Error reading sensor data file.") + f" {e}")
+            return None
+    else:
+        return None
+
+sensor_data = load_sensor_data()
+
+if sensor_data is None:
+    st.error(_("❌ Không kết nối được với ESP32-WROOM hoặc chưa có dữ liệu.", "❌ Cannot connect to ESP32-WROOM or no data available."))
+    # Có thể đặt mặc định hoặc không hiển thị dữ liệu cảm biến
+    soil_moisture = None
+    light_level = None
+    water_flow = None
+else:
+    soil_moisture = sensor_data.get("soil_moisture")
+    light_level = sensor_data.get("light")
+    water_flow = sensor_data.get("water_flow")
+    temperature = sensor_data.get("temperature", None)  # nếu có
+
+    st.write(f"{_('Độ ẩm đất', 'Soil Moisture')}: {soil_moisture} %")
+    st.write(f"{_('Ánh sáng', 'Light')}: {light_level} lux")
+    st.write(f"{_('Lưu lượng nước', 'Water Flow')}: {water_flow} L/min")
+    if temperature is not None:
+        st.write(f"{_('Nhiệt độ', 'Temperature')}: {temperature} °C")
+
+    # Lưu dữ liệu cảm biến mới vào lịch sử
+    if soil_moisture is not None and temperature is not None:
+        add_history_record(soil_moisture, temperature)
+    if water_flow is not None:
+        add_flow_record(water_flow)
 
 # -----------------------
 # Check watering schedule and mode for irrigation decision
@@ -428,6 +459,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
