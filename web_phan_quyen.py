@@ -1,6 +1,7 @@
 # web_esp.py
 import streamlit as st
 from datetime import datetime, timedelta, date, time
+import threading
 import random
 from PIL import Image
 import requests
@@ -10,7 +11,6 @@ from streamlit_autorefresh import st_autorefresh
 import pytz
 import pandas as pd
 import paho.mqtt.client as mqtt
-
 
 sensor_data = None  # biến toàn cục lưu dữ liệu sensor nhận được
 
@@ -442,6 +442,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
