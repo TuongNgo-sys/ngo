@@ -9,6 +9,23 @@ import os
 from streamlit_autorefresh import st_autorefresh
 import pytz
 import pandas as pd
+import paho.mqtt.client as mqtt
+
+# Thông số MQTT broker
+MQTT_BROKER = "broker.hivemq.com"  # hoặc IP broker của bạn
+MQTT_PORT = 1883
+MQTT_TOPIC = "esp32/pump/control"
+
+def send_mqtt_command(message):
+    try:
+        client = mqtt.Client()
+        client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        client.publish(MQTT_TOPIC, message)
+        client.disconnect()
+        return True
+    except Exception as e:
+        st.error(f"Lỗi gửi lệnh MQTT: {e}")
+        return False
 
 # -----------------------
 # Config & helpers
@@ -394,23 +411,24 @@ else:
 
 if config["mode"] == "manual":
     st.info(_("🔧 Chế độ thủ công, không gửi lệnh điều khiển bơm.", "🔧 Manual mode, no pump control command sent."))
-    st.write(_("Bạn có thể bật/tắt bơm thủ công trên thiết bị ESP32.", "You can manually control the pump on ESP32 device."))
+    st.write(_("Bạn có thể bật/tắt bơm thủ công trên thiết bị ESP32 (tủ điện).", "You can manually control the pump on ESP32 device (electrical cabinet)."))
 else:
     # mode == "auto"
     if should_water:
         st.warning(_("⚠️ Cần tưới nước cho cây trồng.", "⚠️ Irrigation is needed for crops."))
-        # Gửi lệnh bật bơm tự động (nếu có)
-        # send_command_to_esp32("PUMP_ON")  # nếu bạn có hàm này
+        # Gửi lệnh bật bơm tự động
+        send_mqtt_command("ON")
     else:
         st.info(_("💧 Không cần tưới nước lúc này.", "💧 No irrigation needed at this moment."))
-        # Gửi lệnh tắt bơm tự động (nếu có)
-        # send_command_to_esp32("PUMP_OFF")
+        # Gửi lệnh tắt bơm tự động
+        send_mqtt_command("OFF")
 # -----------------------
 # Footer
 # -----------------------
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
