@@ -624,13 +624,13 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
 # -----------------------
 # Weather (Open-Meteo) + charts + compare (kept similar)
 # -----------------------
-st.header(_("🌦 Dự báo thời tiết & so sánh mưa - tưới", "🌦 Weather Forecast & Rain-Irrigation Comparison"))
-def fetch_open_meteo(lat, lon, hours=72):
+st.header(_("🌦 Thời tiết hiện tại", "🌦 Current Weather"))
+
+def fetch_open_meteo(lat, lon):
     url = (
         "https://api.open-meteo.com/v1/forecast"
         f"?latitude={lat}&longitude={lon}"
-        "&hourly=precipitation,temperature_2m,relativehumidity_2m"
-        "&daily=precipitation_sum"
+        "&current=temperature_2m,relativehumidity_2m,precipitation"
         "&timezone=auto"
     )
     r = requests.get(url, timeout=15)
@@ -639,106 +639,22 @@ def fetch_open_meteo(lat, lon, hours=72):
 
 try:
     wdata = fetch_open_meteo(latitude, longitude)
-    hr_times = pd.to_datetime(wdata.get("hourly", {}).get("time", []))
-    hr_prec = wdata.get("hourly", {}).get("precipitation", [])
-    hr_temp = wdata.get("hourly", {}).get("temperature_2m", [])
-    hr_rh = wdata.get("hourly", {}).get("relativehumidity_2m", [])
-    df_hr = pd.DataFrame({"time": hr_times, "rain_mm": hr_prec, "temp": hr_temp, "rh": hr_rh}).set_index("time")
-    dy_dates = pd.to_datetime(wdata.get("daily", {}).get("time", []))
-    dy_sum = wdata.get("daily", {}).get("precipitation_sum", [])
-    df_dy = pd.DataFrame({"date": dy_dates.date, "rain_mm": dy_sum}).set_index("date")
-    total_48h = float(df_hr["rain_mm"].iloc[:48].sum()) if not df_hr.empty else 0.0
-    st.markdown(f"**{_('Tổng lượng mưa trong 48 giờ tới:', 'Total rain next 48h:')} {total_48h:.1f} mm**")
+    current = wdata.get("current", {})
+    temp = current.get("temperature_2m")
+    rh = current.get("relativehumidity_2m")
+    rain = current.get("precipitation")
 
-    # Hourly rain chart
-    if not df_hr.empty:
-        fig_h, axh = plt.subplots(figsize=(12,4))
-        axh.plot(df_hr.index, df_hr["rain_mm"], marker='o', linestyle='-')
-        axh.set_title(_("Mưa theo giờ (48h)", "Hourly Rain (48h)"))
-        axh.set_xlabel(_("Thời gian", "Time")); axh.set_ylabel(_("Mưa (mm)", "Rain (mm)"))
-        plt.xticks(rotation=45); plt.tight_layout()
-        st.pyplot(fig_h)
-    else:
-        st.info(_("Không có dữ liệu mưa theo giờ.", "No hourly rain data."))
-
-    # Daily bar chart
-    if not df_dy.empty:
-        fig_d, axd = plt.subplots(figsize=(10,4))
-        axd.bar([d.strftime("%d/%m") for d in df_dy.index], df_dy["rain_mm"])
-        axd.set_title(_("Mưa theo ngày", "Daily Rain Total"))
-        axd.set_xlabel(_("Ngày", "Date")); axd.set_ylabel(_("Mưa tổng (mm/ngày)", "Precipitation (mm/day)"))
-        plt.xticks(rotation=45); plt.tight_layout()
-        st.pyplot(fig_d)
-    else:
-        st.info(_("Không có dữ liệu mưa theo ngày.", "No daily rain data."))
-
-    # Compare rain vs irrigation (daily) - same logic as before
-    hist = load_json(HISTORY_FILE, [])
-    flow = load_json(FLOW_FILE, [])
-    irrig_df = pd.DataFrame(hist)
-    flow_df = pd.DataFrame(flow)
-    daily_irrig_liters = pd.Series(dtype=float)
-    if not irrig_df.empty and "start_time" in irrig_df.columns:
-        avg_flow_by_loc = {}
-        if not flow_df.empty and "time" in flow_df.columns:
-            flow_df["time"] = pd.to_datetime(flow_df["time"], errors='coerce')
-            grouped = flow_df.groupby("location")["flow"].mean()
-            avg_flow_by_loc = grouped.to_dict()
-        irrig_df["start_time_parsed"] = pd.to_datetime(irrig_df["start_time"], errors='coerce')
-        irrig_df["end_time_parsed"] = pd.to_datetime(irrig_df["end_time"], errors='coerce')
-        irrig_df["end_time_parsed"] = irrig_df["end_time_parsed"].fillna(datetime.now(vn_tz))
-        irrig_df["duration_min"] = (irrig_df["end_time_parsed"] - irrig_df["start_time_parsed"]).dt.total_seconds().div(60).clip(lower=0)
-        def estimate_session_liters(row):
-            loc = row.get("location")
-            avgf = avg_flow_by_loc.get(loc, None)
-            if avgf is None or pd.isna(avgf):
-                avgf = 5.0
-            return float(row.get("duration_min", 0.0)) * float(avgf)
-        irrig_df["liters"] = irrig_df.apply(estimate_session_liters, axis=1)
-        irrig_df["date"] = irrig_df["start_time_parsed"].dt.date
-        daily_irrig_liters = irrig_df.groupby("date")["liters"].sum()
-
-    cmp_idx = sorted(set([d for d in df_dy.index]) | set(daily_irrig_liters.index.tolist()))
-    cmp_df = pd.DataFrame(index=cmp_idx)
-    if not df_dy.empty:
-        cmp_df["rain_mm"] = df_dy["rain_mm"]
-    else:
-        cmp_df["rain_mm"] = 0.0
-    if not daily_irrig_liters.empty:
-        cmp_df["irrig_liters"] = daily_irrig_liters
-    else:
-        cmp_df["irrig_liters"] = 0.0
-    cmp_df = cmp_df.fillna(0.0)
-
-    if not cmp_df.empty:
-        fig_c, axc = plt.subplots(figsize=(12,4))
-        axc.bar([d.strftime("%d/%m") for d in cmp_df.index], cmp_df["rain_mm"], label=_("Mưa (mm)", "Rain (mm)"))
-        axc.set_ylabel(_("Mưa (mm)", "Rain (mm)"))
-        axc.set_xlabel(_("Ngày", "Date"))
-        axc_twin = axc.twinx()
-        axc_twin.plot([d.strftime("%d/%m") for d in cmp_df.index], cmp_df["irrig_liters"], color='orange', marker='o', label=_("Tổng tưới (L)", "Total irrigation (L)"))
-        axc_twin.set_ylabel(_("Tổng tưới (L)", "Total irrigation (L)"))
-        axc.set_title(_("So sánh mưa (mm) và tổng tưới (L) theo ngày", "Rain (mm) vs irrigation (L) per day"))
-        axc.legend(loc='upper left')
-        axc_twin.legend(loc='upper right')
-        plt.xticks(rotation=45); plt.tight_layout()
-        st.pyplot(fig_c)
-    else:
-        st.info(_("Không có dữ liệu để so sánh mưa và tưới.", "No data to compare rain and irrigation."))
-
-    # Alert threshold
-    rain_threshold_mm = st.sidebar.number_input(_("Ngưỡng mưa để hủy tưới (mm)", "Rain threshold to skip irrigation (mm)"), value=10.0, step=1.0)
-    today_dt = date.today()
-    rain_today = float(cmp_df.reindex([today_dt])["rain_mm"]) if today_dt in cmp_df.index else 0.0
-    if rain_today >= rain_threshold_mm:
-        st.warning(_("⚠️ CẢNH BÁO: Hôm nay đã mưa đủ ({:.1f} mm). Không cần tưới.".format(rain_today),
-                     "⚠️ ALERT: Enough rain today ({:.1f} mm). No irrigation needed.".format(rain_today)))
-    else:
-        st.info(_("🌤 Mưa hôm nay: {:.1f} mm — vẫn có thể cần tưới nếu độ ẩm thấp.".format(rain_today),
-                  "🌤 Rain today: {:.1f} mm — irrigation may still be needed if soil moisture is low.".format(rain_today)))
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric(_("🌡 Nhiệt độ (°C)", "🌡 Temperature (°C)"), f"{temp} °C" if temp is not None else "N/A")
+    with col2:
+        st.metric(_("💧 Độ ẩm không khí (%)", "💧 Air Humidity (%)"), f"{rh} %" if rh is not None else "N/A")
+    with col3:
+        st.metric(_("🌧 Lượng mưa (mm)", "🌧 Precipitation (mm)"), f"{rain} mm" if rain is not None else "N/A")
 
 except Exception as e:
     st.error(_("Lỗi khi lấy dữ liệu thời tiết:", "Error fetching weather data:") + f" {e}")
+
 # Kiểm tra thời gian trong khung tưới
 def is_in_watering_time():
     now_time = datetime.now(vn_tz).time()
