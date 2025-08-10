@@ -38,7 +38,7 @@ def load_json(path, default):
                 return json.load(f)
         except:
             return default
-    else:
+            else:
         return default
 
 def save_json(path, data):
@@ -166,7 +166,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     if password != "admin123":
         st.sidebar.error(_("❌ Mật khẩu sai. Truy cập bị từ chối.", "❌ Incorrect password. Access denied."))
         st.stop()
-    else:
+        else:
         st.sidebar.success(_("✅ Xác thực thành công.", "✅ Authentication successful."))
 
 # -----------------------
@@ -226,7 +226,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
                 crop_data[selected_city]["plots"].append(crop_entry)
                 save_json(DATA_FILE, crop_data)
                 st.success(_("Đã thêm cây vào khu vực.", "Crop added to location."))
-    else:
+                else:
         crop_display_names = [crop_names[k] for k in crops.keys()]
         selected_crop_display = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), crop_display_names)
         selected_crop = next(k for k, v in crop_names.items() if v == selected_crop_display)
@@ -258,9 +258,9 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         if rows_hist:
             df_hist_plants = pd.DataFrame(rows_hist)
             st.dataframe(df_hist_plants)
-        else:
+            else:
             st.info(_("Không có cây được trồng trong vòng 1 năm tại khu vực này.", "No plantings within last 1 year in this location."))
-    else:
+            else:
         st.info(_("Chưa có vùng trồng nào trong khu vực này.", "No plots in this location yet."))
 
 # --- NEW: Controller - choose which plot to control pump for
@@ -269,7 +269,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     plots_for_control = crop_data.get(selected_city, {}).get("plots", [])
     if not plots_for_control:
         st.info(_("Chưa có khu vực con (plot) để điều khiển. Vui lòng thêm vùng trồng.", "No sub-plots to control. Please add plantings."))
-    else:
+        else:
         # create friendly labels
         plot_labels = []
         for i, p in enumerate(plots_for_control):
@@ -290,7 +290,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
                 
                         st.success(_("🚰 Đã dừng bơm cho khu vực.", "🚰 Pump stopped for selected plot."))
                         break
-                else:
+                        else:
                     st.info(_("Không tìm thấy phiên tưới đang mở cho khu vực này.", "No open irrigation session found for this plot."))
 
 # -----------------------
@@ -318,16 +318,16 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
                     if days <= 14: return _("🌱 Mới trồng", "🌱 Newly planted")
                     elif days <= 180: return _("🌿 Phát triển", "🌿 Growing")
                     elif days <= 330: return _("🌼 Ra hoa", "🌼 Flowering")
-                    else: return _("🍌 Đã thu hoạch", "🍌 Harvested")
+                    else:
                 elif crop == "Ngô":
                     if days <= 25: return _("🌱 Mới trồng", "🌱 Newly planted")
                     elif days <= 70: return _("🌿 Thụ phấn", "🌿 Pollination")
                     elif days <= 100: return _("🌼 Trái phát triển", "🌼 Kernel growth")
-                    else: return _("🌽 Đã thu hoạch", "🌽 Harvested")
+                    else:
                 elif crop == "Ớt":
                     if days <= 20: return _("🌱 Mới trồng", "🌱 Newly planted")
                     elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
-                    else: return _("🌶️ Đã thu hoạch", "🌶️ Harvested")
+                    else:
             rows.append({
                 "crop": crop_names[crop_k],
                 "planting_date": pd_date.strftime("%d/%m/%Y"),
@@ -338,7 +338,7 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
             })
         df_plots = pd.DataFrame(rows)
         st.dataframe(df_plots)
-    else:
+        else:
         st.info(_("📍 Chưa có thông tin gieo trồng tại khu vực này.", "📍 No crop information available in this location."))
 
     # 3. Hiển thị lịch sử tưới (đã được lọc 1 năm khi load)
@@ -376,7 +376,7 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
         plt.xticks(rotation=45)
         plt.tight_layout()
         st.pyplot(fig)
-    else:
+        else:
         st.info(_("Chưa có dữ liệu cảm biến cho khu vực này.", "No sensor data for this location."))
 
     # Biểu đồ lưu lượng nước
@@ -392,7 +392,7 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
         plt.xticks(rotation=45)
         plt.tight_layout()
         st.pyplot(fig2)
-    else:
+        else:
         st.info(_("Chưa có dữ liệu lưu lượng nước cho khu vực này.", "No water flow data for this location."))
 
 # -----------------------
@@ -432,13 +432,13 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         if main_mode == _("Tự động", "Automatic"):
             config["mode"] = "auto"
             config.pop("manual_control_type", None)
-        else:
+            else:
             config["mode"] = "manual"
             config["manual_control_type"] = manual_control_type
         save_json(CONFIG_FILE, config)
         st.success(_("Đã lưu cấu hình.", "Configuration saved."))
 
-else:
+        else:
     st.markdown(
         _("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") + f" **{config['watering_schedule']}**"
     )
@@ -525,14 +525,14 @@ with col1:
     st.markdown(_("### Độ ẩm đất (Sensor Humidity)", "### Soil Moisture"))
     if not df_soil_live.empty:
         st.line_chart(df_soil_live["sensor_hum"])
-    else:
+        else:
         st.info(_("Chưa có dữ liệu độ ẩm đất nhận từ ESP32.", "No soil moisture data received from ESP32."))
 
 with col2:
     st.markdown(_("### Lưu lượng nước (Water Flow)", "### Water Flow"))
     if not df_flow_live.empty:
         st.line_chart(df_flow_live["flow"])
-    else:
+        else:
         st.info(_("Chưa có dữ liệu lưu lượng nước nhận từ ESP32.", "No water flow data received from ESP32."))
 
 # -----------------------
@@ -544,7 +544,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     water_on = st.checkbox(_("Bật bơm tưới", "Pump ON"))
     if water_on:
         st.success(_("Bơm đang hoạt động...", "Pump is ON..."))
-    else:
+        else:
         st.info(_("Bơm đang tắt", "Pump is OFF"))
 
     # Logic tự động tưới có thể viết thêm
@@ -561,7 +561,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     plots = crop_data.get(selected_city, {}).get("plots", [])
     if len(plots) == 0:
         st.warning(_("❗ Khu vực chưa có cây trồng. Vui lòng cập nhật trước khi tưới.", "❗ No crops found in location. Please update before irrigation."))
-    else:
+        else:
         # Giả sử chỉ tưới cây đầu tiên trong danh sách plots (để đơn giản)
         crop_info = plots[0]
         crop_key = crop_info["crop"]
@@ -572,7 +572,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         if hist_crop:
             latest_data = sorted(hist_crop, key=lambda x: x["timestamp"], reverse=True)[0]
             current_moisture = latest_data.get("sensor_hum", None)
-        else:
+            else:
             current_moisture = None
 
         st.markdown(f"**{_('Cây trồng hiện tại', 'Current crop')}:** {crop_names[crop_key]}")
@@ -594,13 +594,13 @@ if user_type == _("Người điều khiển", "Control Administrator"):
                         
                                 st.success(_("🚰 Đã dừng tưới.", "🚰 Irrigation stopped."))
                                 break
-                else:
+                                else:
                     st.info(_("🌿 Độ ẩm đất đủ, không cần tưới.", "🌿 Soil moisture adequate, no irrigation needed."))
                     # Nếu có phiên tưới đang mở thì đóng lại
                     
-            else:
+                    else:
                 st.warning(_("⚠️ Hệ thống đang ở chế độ thủ công.", "⚠️ System is in manual mode."))
-        else:
+                else:
             st.info(_("🕒 Không phải giờ tưới.", "🕒 Not watering time."))
 
     # Hiển thị lịch sử tưới của khu vực (1 năm)
