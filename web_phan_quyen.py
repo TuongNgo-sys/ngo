@@ -11,21 +11,39 @@ import pytz
 import pandas as pd
 import paho.mqtt.client as mqtt
 
-# Thông số MQTT broker
-MQTT_BROKER = "broker.hivemq.com"  # hoặc IP broker của bạn
-MQTT_PORT = 1883
-MQTT_TOPIC = "esp32/pump/control"
 
-def send_mqtt_command(message):
+sensor_data = None  # biến toàn cục lưu dữ liệu sensor nhận được
+
+MQTT_BROKER = "broker.hivemq.com"
+MQTT_PORT = 1883
+MQTT_TOPIC_SENSOR = "esp32/sensor/data"
+
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        print("MQTT connected successfully")
+        client.subscribe(MQTT_TOPIC_SENSOR)
+    else:
+        print("MQTT connect failed with code", rc)
+
+def on_message(client, userdata, msg):
+    global sensor_data
     try:
-        client = mqtt.Client()
-        client.connect(MQTT_BROKER, MQTT_PORT, 60)
-        client.publish(MQTT_TOPIC, message)
-        client.disconnect()
-        return True
+        payload = msg.payload.decode("utf-8")
+        data = json.loads(payload)
+        sensor_data = data
+        print(f"Received sensor data: {sensor_data}")
     except Exception as e:
-        st.error(f"Lỗi gửi lệnh MQTT: {e}")
-        return False
+        print("Error parsing MQTT message:", e)
+
+def mqtt_thread():
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_message = on_message
+    client.connect(MQTT_BROKER, MQTT_PORT, 60)
+    client.loop_forever()
+
+# Khởi chạy MQTT client trong thread riêng
+threading.Thread(target=mqtt_thread, daemon=True).start()
 
 # -----------------------
 # Config & helpers
@@ -332,19 +350,25 @@ col3.metric("☔ " + _("Khả năng mưa", "Precipitation Probability"), f"{curr
 # -----------------------
 st.subheader(_("📡 Dữ liệu cảm biến thực tế (ESP32)", "📡 Real sensor data (ESP32)"))
 
-# Đây bạn thay bằng dữ liệu thực lấy qua MQTT hoặc HTTP POST của ESP32
-# Simulate sensor data for demo:
-sensor_data = {
-    "soil_moisture": random.randint(30, 90),  # %
-    "soil_temp": random.uniform(18, 30),      # °C
-    "light": random.randint(100, 1200),       # Lux
-    "water_flow": random.uniform(0, 20)       # L/min
-}
+if sensor_data:
+    soil_moisture = sensor_data.get("soil_moisture")
+    soil_temp = sensor_data.get("soil_temp")
+    light_level = sensor_data.get("light")
+    water_flow = sensor_data.get("water_flow")
 
-st.write(f"- {_('Độ ẩm đất hiện tại', 'Current soil moisture')}: {sensor_data['soil_moisture']} %")
-st.write(f"- {_('Nhiệt độ đất', 'Soil temperature')}: {sensor_data['soil_temp']:.1f} °C")
-st.write(f"- {_('Cường độ ánh sáng', 'Light intensity')}: {sensor_data['light']} lux")
-st.write(f"- {_('Lưu lượng nước', 'Water flow')}: {sensor_data['water_flow']:.2f} L/min")
+    st.write(f"- {_('Độ ẩm đất hiện tại', 'Current soil moisture')}: {soil_moisture} %")
+    st.write(f"- {_('Nhiệt độ đất', 'Soil temperature')}: {soil_temp} °C")
+    st.write(f"- {_('Cường độ ánh sáng', 'Light intensity')}: {light_level} lux")
+    st.write(f"- {_('Lưu lượng nước', 'Water flow')}: {water_flow} L/min")
+
+    # Lưu dữ liệu mới vào lịch sử
+    if soil_moisture is not None and soil_temp is not None:
+        add_history_record(soil_moisture, soil_temp)
+    if water_flow is not None:
+        add_flow_record(water_flow)
+else:
+    st.info(_("Chưa có dữ liệu cảm biến thực tế từ ESP32.", "No real sensor data from ESP32 yet."))
+    soil_moisture = None
 
 # -----------------------
 # Tưới nước - Logic quyết định
@@ -418,6 +442,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
