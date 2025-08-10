@@ -12,6 +12,15 @@ import requests
 import paho.mqtt.client as mqtt
 import matplotlib.pyplot as plt  # plotting
 import io
+# --- Language fallback to avoid errors ---
+if 'lang' not in globals():
+    lang = "English"
+if 'vi' not in globals():
+    vi = (lang == "Tiếng Việt")
+def _(vi_text, en_text):
+    return vi_text if vi else en_text
+
+
 
 # -----------------------
 # Config & helpers
@@ -932,4 +941,3 @@ with col4:
 st.markdown("---")
 st.markdown(_("© 2025 Ngô Nguyễn Định Tường", "© 2025 Ngo Nguyen Dinh Tuong"))
 st.markdown(_("© 2025 Mai Phúc Khang", "© 2025 Mai Phuc Khang"))
-
