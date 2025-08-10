@@ -157,10 +157,32 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     else:
         st.sidebar.success(_("✅ Xác thực thành công.", "✅ Authentication successful."))
 
-# ... Các phần khác (Locations, Crops, Crop management, Mode config...) giữ nguyên như bạn đã viết ...
+# -----------------------
+# Locations & crops (thêm đoạn lấy tọa độ)
+# -----------------------
+locations = {
+    "TP. Hồ Chí Minh": (10.762622, 106.660172),
+    "Hà Nội": (21.028511, 105.804817),
+    "Cần Thơ": (10.045161, 105.746857),
+    "Đà Nẵng": (16.054407, 108.202167),
+    "Bình Dương": (11.3254, 106.4770),
+    "Đồng Nai": (10.9453, 106.8133),
+}
+location_names = {
+    "TP. Hồ Chí Minh": _("TP. Hồ Chí Minh", "Ho Chi Minh City"),
+    "Hà Nội": _("Hà Nội", "Hanoi"),
+    "Cần Thơ": _("Cần Thơ", "Can Tho"),
+    "Đà Nẵng": _("Đà Nẵng", "Da Nang"),
+    "Bình Dương": _("Bình Dương", "Binh Duong"),
+    "Đồng Nai": _("Đồng Nai", "Dong Nai")
+}
+location_display_names = [location_names[k] for k in locations.keys()]
+selected_city_display = st.selectbox(_("📍 Chọn địa điểm:", "📍 Select location:"), location_display_names)
+selected_city = next(k for k, v in location_names.items() if v == selected_city_display)
+latitude, longitude = locations[selected_city]
 
 # -----------------------
-# Weather API (unchanged)
+# Weather API
 # -----------------------
 st.subheader(_("🌦️ Thời tiết hiện tại", "🌦️ Current Weather"))
 weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability&timezone=auto"
@@ -221,6 +243,8 @@ if selected_city in crop_data and crop_data[selected_city].get("plots"):
     selected_crop_for_decision = crop_data[selected_city]["plots"][0]["crop"]
 
 threshold = config.get("moisture_thresholds", {}).get(selected_crop_for_decision, 65) if selected_crop_for_decision else 65
+
+mode_flag = config.get("mode", "auto")
 
 if soil_moisture is not None:
     should_water = soil_moisture < threshold and mode_flag == "auto" and is_in_watering_time
