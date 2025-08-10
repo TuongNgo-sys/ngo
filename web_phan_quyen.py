@@ -364,7 +364,11 @@ else:
 st.write(f"Mode: **{config['mode']}**")
 
 # Tưới nếu soil moisture dưới ngưỡng (ví dụ 65%)
-should_water = simulated_soil_moisture < 65 and config["mode"] == "auto" and is_in_watering_time
+if soil_moisture is not None:
+    should_water = soil_moisture < 65 and config["mode"] == "auto" and is_in_watering_time
+else:
+    should_water = False
+    st.warning(_("Không có dữ liệu độ ẩm đất để quyết định tưới.", "No soil moisture data for irrigation decision."))
 
 if should_water:
     st.warning(_("⚠️ Cần tưới nước cho cây trồng.", "⚠️ Irrigation is needed for crops."))
@@ -459,6 +463,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
