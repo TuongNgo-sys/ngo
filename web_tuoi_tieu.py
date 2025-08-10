@@ -12,13 +12,29 @@ import requests
 import paho.mqtt.client as mqtt
 import matplotlib.pyplot as plt  # plotting
 import io
+# --- Safe translation function (defined once) ---
+try:
+    lang
+except NameError:
+    lang = "English"
+try:
+    vi
+except NameError:
+    vi = (lang == "Tiếng Việt")
+
+def _(vi_text, en_text):
+    """Return Vietnamese text if lang indicates Vietnamese; fallback to English.
+    Safe to call even if 'lang' or 'vi' are not defined yet elsewhere."""
+    try:
+        return vi_text if (lang == "Tiếng Việt" or vi) else en_text
+    except Exception:
+        return en_text
+
 # --- Language fallback to avoid errors ---
 if 'lang' not in globals():
     lang = "English"
 if 'vi' not in globals():
     vi = (lang == "Tiếng Việt")
-def _(vi_text, en_text):
-    return vi_text if vi else en_text
 
 
 
@@ -30,11 +46,6 @@ st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
 # --- I18N ---
 lang = st.sidebar.selectbox("🌐 Language / Ngôn ngữ", ["Tiếng Việt", "English"])
 vi = lang == "Tiếng Việt"
-def _(vi_text, en_text):
-    try:
-        return vi_text if lang == "Tiếng Việt" else en_text
-    except:
-        return en_text
 
 # Files
 DATA_FILE = "crop_data.json"
