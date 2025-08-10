@@ -5,3 +5,4 @@ pillow
 matplotlib
 pytz
 paho-mqtt
+plotly
