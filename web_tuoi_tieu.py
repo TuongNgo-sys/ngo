@@ -11,6 +11,7 @@ from PIL import Image
 import requests
 import paho.mqtt.client as mqtt
 import matplotlib.pyplot as plt  # plotting
+import io
 
 # -----------------------
 # Config & helpers
@@ -29,7 +30,6 @@ HISTORY_FILE = "history_irrigation.json"
 FLOW_FILE = "flow_data.json"  # lưu dữ liệu lưu lượng (esp32) theo thời gian
 CONFIG_FILE = "config.json"   # lưu cấu hình chung: khung giờ tưới + chế độ
 UPLOAD_DIR = "data_uploads"   # nơi lưu file Excel upload
-
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 def load_json(path, default):
@@ -63,7 +63,6 @@ def filter_recent_list(lst, time_key, days=365):
         if not ts:
             continue
         try:
-            # Accept ISO with timezone or without
             dt = datetime.fromisoformat(ts)
         except Exception:
             try:
@@ -73,14 +72,15 @@ def filter_recent_list(lst, time_key, days=365):
                     dt = pd.to_datetime(ts)
                 except Exception:
                     continue
+        # Ensure timezone
         if hasattr(dt, "tzinfo") and dt.tzinfo is None:
             dt = vn_tz.localize(dt)
-        # if pandas.Timestamp
-        if hasattr(dt, "tz_localize") and getattr(dt, "tzinfo", None) is None:
-            try:
+        # pandas Timestamp handling
+        try:
+            if hasattr(dt, "tz_localize") and getattr(dt, "tzinfo", None) is None:
                 dt = dt.tz_localize(vn_tz)
-            except Exception:
-                pass
+        except Exception:
+            pass
         if dt >= cutoff:
             out.append(item)
     return out
@@ -89,31 +89,29 @@ def filter_recent_list(lst, time_key, days=365):
 # Helpers for Excel/CSV ingestion
 # -----------------------
 def normalize_cols(df):
-    # Lowercase columns for detection
     df2 = df.copy()
     df2.columns = [str(c).strip() for c in df2.columns]
     colmap = {}
-    lc = [c.lower() for c in df2.columns]
-    for i, c in enumerate(df2.columns):
+    for c in df2.columns:
         cl = c.lower()
         if cl in ["timestamp", "time", "datetime", "date_time"]:
             colmap[c] = "timestamp"
         elif "temp" in cl or "temperature" in cl:
             colmap[c] = "sensor_temp"
-        elif "hum" in cl or "moist" in cl or "humidity" in cl:
+        elif "hum" in cl and ("soil" not in cl):
+            colmap[c] = "air_humidity"
+        elif "soil" in cl or "moist" in cl or "soil_moist" in cl or "sensor_hum" in cl:
             colmap[c] = "sensor_hum"
         elif "flow" in cl or "lpm" in cl or "water_flow" in cl:
             colmap[c] = "flow"
         elif cl in ["location", "site", "city"]:
             colmap[c] = "location"
+        elif "pump" in cl:
+            colmap[c] = "pump_state"
     df2 = df2.rename(columns=colmap)
     return df2
 
 def ingest_file_to_data(path):
-    """
-    Read an uploaded Excel/CSV file and append detected data to HISTORY_FILE and FLOW_FILE.
-    Returns counts appended (hist_count, flow_count)
-    """
     hist = load_json(HISTORY_FILE, [])
     flow = load_json(FLOW_FILE, [])
     appended_hist = 0
@@ -123,71 +121,55 @@ def ingest_file_to_data(path):
         if path.lower().endswith(".csv"):
             df = pd.read_csv(path)
         else:
-            # try read excel (first sheet)
             df = pd.read_excel(path)
-    except Exception as e:
-        # try reading with pandas engine fallback
+    except Exception:
         try:
             df = pd.read_csv(path)
         except Exception:
-            return (0, 0)
+            return (0,0)
 
     if df is None or df.empty:
-        return (0, 0)
-
+        return (0,0)
     df = normalize_cols(df)
 
-    # find rows that contain sensor data
-    # For each row, create appropriate dicts
     for _, row in df.iterrows():
-        # Timestamp handling
         ts = None
         if "timestamp" in row and pd.notna(row["timestamp"]):
             try:
-                ts_val = row["timestamp"]
-                # pandas Timestamp or string
-                ts = pd.to_datetime(ts_val).isoformat()
+                ts = pd.to_datetime(row["timestamp"]).isoformat()
             except:
                 ts = None
-        # fallback: if there is a 'date' or 'time' column
         if ts is None:
             for c in df.columns:
-                if c.lower() in ["date", "day"] and pd.notna(row[c]):
+                if str(c).lower() in ["date", "day"] and pd.notna(row[c]):
                     try:
                         ts = pd.to_datetime(row[c]).isoformat()
                         break
                     except:
                         pass
-        # location fallback
         loc = None
         if "location" in row and pd.notna(row["location"]):
             loc = str(row["location"])
         else:
-            loc = ""  # will be filled by selected_city if missing later
+            loc = ""
 
         # sensor data
-        if "sensor_hum" in row or "sensor_temp" in row:
+        if ("sensor_hum" in row and pd.notna(row["sensor_hum"])) or ("sensor_temp" in row and pd.notna(row["sensor_temp"])) or ("air_humidity" in row and pd.notna(row["air_humidity"])):
             record = {}
             record["timestamp"] = ts if ts else datetime.now(vn_tz).isoformat()
-            if "sensor_hum" in row and pd.notna(row["sensor_hum"]):
-                try:
-                    record["sensor_hum"] = float(row["sensor_hum"])
-                except:
-                    record["sensor_hum"] = None
-            else:
+            try:
+                record["sensor_hum"] = float(row["sensor_hum"]) if "sensor_hum" in row and pd.notna(row["sensor_hum"]) else (float(row["air_humidity"]) if "air_humidity" in row and pd.notna(row["air_humidity"]) else None)
+            except:
                 record["sensor_hum"] = None
-            if "sensor_temp" in row and pd.notna(row["sensor_temp"]):
-                try:
-                    record["sensor_temp"] = float(row["sensor_temp"])
-                except:
-                    record["sensor_temp"] = None
-            else:
+            try:
+                record["sensor_temp"] = float(row["sensor_temp"]) if "sensor_temp" in row and pd.notna(row["sensor_temp"]) else None
+            except:
                 record["sensor_temp"] = None
             record["location"] = loc or ""
             hist.append(record)
             appended_hist += 1
 
-        # flow data
+        # flow
         if "flow" in row and pd.notna(row["flow"]):
             try:
                 flow_val = float(row["flow"])
@@ -198,12 +180,17 @@ def ingest_file_to_data(path):
                 flow.append(recf)
                 appended_flow += 1
 
+        # pump state in file -> append to history as special record
+        if "pump_state" in row and pd.notna(row["pump_state"]):
+            # Save pump state as a special history record for display
+            rec = {"timestamp": ts if ts else datetime.now(vn_tz).isoformat(), "event": "pump_state", "value": str(row["pump_state"]), "location": loc or ""}
+            hist.append(rec)
+
     # trim and save
     hist_trimmed = filter_recent_list(hist, "timestamp", days=365)
     flow_trimmed = filter_recent_list(flow, "time", days=365)
     save_json(HISTORY_FILE, hist_trimmed)
     save_json(FLOW_FILE, flow_trimmed)
-
     return (appended_hist, appended_flow)
 
 # -----------------------
@@ -214,7 +201,6 @@ _raw_history = load_json(HISTORY_FILE, [])
 _raw_flow = load_json(FLOW_FILE, [])
 history_data = filter_recent_list(_raw_history, "timestamp", days=365)
 flow_data = filter_recent_list(_raw_flow, "time", days=365)
-# Save trimmed back to keep files small
 save_json(HISTORY_FILE, history_data)
 save_json(FLOW_FILE, flow_data)
 
@@ -237,10 +223,10 @@ except Exception:
 
 now = datetime.now(vn_tz)
 st.markdown(f"<h2 style='text-align: center; font-size: 50px;'>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
-st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }: {now.strftime('%d/%m/%Y')}</h3>", unsafe_allow_html=True)
+st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }: {now.strftime('%d/%m/%Y %H:%M:%S')}</h3>", unsafe_allow_html=True)
 
 # -----------------------
-# Sidebar - role, auth & upload
+# Sidebar - role, auth & upload & export
 # -----------------------
 st.sidebar.title(_("🔐 Chọn vai trò người dùng", "🔐 Select User Role"))
 user_type = st.sidebar.radio(_("Bạn là:", "You are:"), [_("Người điều khiển", "Control Administrator"), _("Người giám sát", " Monitoring Officer")])
@@ -262,7 +248,6 @@ if uploaded_files:
     for up in uploaded_files:
         # Save file
         save_path = os.path.join(UPLOAD_DIR, up.name)
-        # If name collision, append timestamp
         if os.path.exists(save_path):
             base, ext = os.path.splitext(up.name)
             save_path = os.path.join(UPLOAD_DIR, f"{base}_{int(datetime.now().timestamp())}{ext}")
@@ -276,8 +261,36 @@ if uploaded_files:
     history_data = filter_recent_list(load_json(HISTORY_FILE, []), "timestamp", days=365)
     flow_data = filter_recent_list(load_json(FLOW_FILE, []), "time", days=365)
 
+# Export history button (only when user requests)
+st.sidebar.markdown("---")
+st.sidebar.markdown(_("📤 Xuất lịch sử (Excel)", "📤 Export history (Excel)"))
+export_scope = st.sidebar.selectbox(_("Chọn phạm vi xuất", "Select export scope"), [_("Khu vực hiện tại", "Current location"), _("Toàn bộ", "All locations")])
+if st.sidebar.button(_("📥 Xuất file Excel lịch sử", "📥 Export Excel history")):
+    # prepare dataframes
+    hist = load_json(HISTORY_FILE, [])
+    flow = load_json(FLOW_FILE, [])
+    df_hist = pd.DataFrame(hist)
+    df_flow = pd.DataFrame(flow)
+    if export_scope == _("Khu vực hiện tại", "Current location"):
+        df_hist = df_hist[df_hist.get("location", "") == selected_city] if not df_hist.empty else df_hist
+        df_flow = df_flow[df_flow.get("location", "") == selected_city] if not df_flow.empty else df_flow
+    # create excel in-memory
+    out = io.BytesIO()
+    with pd.ExcelWriter(out, engine="xlsxwriter") as writer:
+        if not df_hist.empty:
+            df_hist.to_excel(writer, sheet_name="history_irrigation", index=False)
+        if not df_flow.empty:
+            df_flow.to_excel(writer, sheet_name="flow_data", index=False)
+        # include crops and config for reference
+        pd.DataFrame([config]).to_excel(writer, sheet_name="config", index=False)
+        pd.DataFrame.from_dict(crop_data, orient="index").to_excel(writer, sheet_name="crop_data", index=True)
+        writer.save()
+    out.seek(0)
+    filename = f"export_history_{selected_city}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx" if export_scope == _("Khu vực hiện tại", "Current location") else f"export_history_all_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    st.sidebar.download_button(label=_("Tải file Excel lịch sử", "Download Excel history"), data=out, file_name=filename, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 # -----------------------
-# Auto-refresh every 30 minutes using session_state (no external lib)
+# Auto-refresh every 30 minutes using session_state
 # -----------------------
 REFRESH_INTERVAL_SECONDS = 30 * 60  # 30 minutes
 if "last_auto_refresh" not in st.session_state:
@@ -286,11 +299,10 @@ else:
     elapsed = (datetime.now(vn_tz) - st.session_state["last_auto_refresh"]).total_seconds()
     if elapsed >= REFRESH_INTERVAL_SECONDS:
         st.session_state["last_auto_refresh"] = datetime.now(vn_tz)
-        # rerun to refresh data from uploads / open-meteo / mqtt
         st.experimental_rerun()
 
 # -----------------------
-# Locations & crops (same as before)
+# Locations & crops (same)
 # -----------------------
 locations = {
     "TP. Hồ Chí Minh": (10.762622, 106.660172),
@@ -322,7 +334,7 @@ required_soil_moisture = {"Ngô": 65, "Chuối": 70, "Ớt": 65}
 crop_names = {"Ngô": _("Ngô", "Corn"), "Chuối": _("Chuối", "Banana"), "Ớt": _("Ớt", "Chili pepper")}
 
 # -----------------------
-# Crop management UI + controller features
+# Crop management UI + controller features (unchanged behavior mostly)
 # -----------------------
 st.header(_("🌱 Quản lý cây trồng", "🌱 Crop Management"))
 mode_flag = config.get("mode", "auto")
@@ -330,7 +342,6 @@ mode_flag = config.get("mode", "auto")
 # Controller: add/update plantings
 if user_type == _("Người điều khiển", "Control Administrator"):
     st.subheader(_("Thêm / Cập nhật vùng trồng", "Add / Update Plantings"))
-    # allow specifying sub-plot name / khu vực con
     plot_name = st.text_input(_("Tên khu vực con (plot) (ví dụ: Khu A, Khu B)", "Sub-plot name (e.g. Plot A, Plot B)"), value="")
     multiple = st.checkbox(_("Trồng nhiều loại trên khu vực này", "Plant multiple crops in this location"), value=False)
     if selected_city not in crop_data:
@@ -355,7 +366,6 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         planting_date = st.date_input(_("📅 Ngày gieo trồng:", "📅 Planting date:"), value=date.today())
         if st.button(_("💾 Lưu thông tin trồng", "💾 Save planting info")):
             crop_entry = {"crop": selected_crop, "planting_date": planting_date.isoformat(), "plot_name": plot_name}
-            # append to list (do not overwrite all plots)
             if selected_city not in crop_data:
                 crop_data[selected_city] = {"plots": [crop_entry], "mode": mode_flag}
             else:
@@ -381,7 +391,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     else:
         st.info(_("Chưa có vùng trồng nào trong khu vực này.", "No plots in this location yet."))
 
-# Controller - planting history (1 year) + pump per plot (already included)
+# Controller - planting history (1 year) + pump per plot
 if user_type == _("Người điều khiển", "Control Administrator"):
     st.subheader(_("📚 Lịch sử cây đã trồng (1 năm)", "📚 Planting history (1 year)"))
     plots_all = crop_data.get(selected_city, {}).get("plots", [])
@@ -557,10 +567,9 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
         st.info(_("Chưa có dữ liệu lưu lượng nước cho khu vực này.", "No water flow data for this location."))
 
 # -----------------------
-# Weather (Open-Meteo) + charts + compare (kept similar to your previous code)
+# Weather (Open-Meteo) + charts + compare (kept similar)
 # -----------------------
 st.header(_("🌦 Dự báo thời tiết & so sánh mưa - tưới", "🌦 Weather Forecast & Rain-Irrigation Comparison"))
-
 def fetch_open_meteo(lat, lon, hours=72):
     url = (
         "https://api.open-meteo.com/v1/forecast"
@@ -575,18 +584,14 @@ def fetch_open_meteo(lat, lon, hours=72):
 
 try:
     wdata = fetch_open_meteo(latitude, longitude)
-    # hourly
     hr_times = pd.to_datetime(wdata.get("hourly", {}).get("time", []))
     hr_prec = wdata.get("hourly", {}).get("precipitation", [])
     hr_temp = wdata.get("hourly", {}).get("temperature_2m", [])
     hr_rh = wdata.get("hourly", {}).get("relativehumidity_2m", [])
     df_hr = pd.DataFrame({"time": hr_times, "rain_mm": hr_prec, "temp": hr_temp, "rh": hr_rh}).set_index("time")
-
-    # daily
     dy_dates = pd.to_datetime(wdata.get("daily", {}).get("time", []))
     dy_sum = wdata.get("daily", {}).get("precipitation_sum", [])
     df_dy = pd.DataFrame({"date": dy_dates.date, "rain_mm": dy_sum}).set_index("date")
-
     total_48h = float(df_hr["rain_mm"].iloc[:48].sum()) if not df_hr.empty else 0.0
     st.markdown(f"**{_('Tổng lượng mưa trong 48 giờ tới:', 'Total rain next 48h:')} {total_48h:.1f} mm**")
 
@@ -612,12 +617,11 @@ try:
     else:
         st.info(_("Không có dữ liệu mưa theo ngày.", "No daily rain data."))
 
-    # Compare rain vs irrigation (daily)
+    # Compare rain vs irrigation (daily) - same logic as before
     hist = load_json(HISTORY_FILE, [])
     flow = load_json(FLOW_FILE, [])
     irrig_df = pd.DataFrame(hist)
     flow_df = pd.DataFrame(flow)
-
     daily_irrig_liters = pd.Series(dtype=float)
     if not irrig_df.empty and "start_time" in irrig_df.columns:
         avg_flow_by_loc = {}
@@ -625,7 +629,6 @@ try:
             flow_df["time"] = pd.to_datetime(flow_df["time"], errors='coerce')
             grouped = flow_df.groupby("location")["flow"].mean()
             avg_flow_by_loc = grouped.to_dict()
-
         irrig_df["start_time_parsed"] = pd.to_datetime(irrig_df["start_time"], errors='coerce')
         irrig_df["end_time_parsed"] = pd.to_datetime(irrig_df["end_time"], errors='coerce')
         irrig_df["end_time_parsed"] = irrig_df["end_time_parsed"].fillna(datetime.now(vn_tz))
@@ -749,43 +752,159 @@ def is_in_watering_time():
     return False
 
 # -----------------------
-# MQTT Client for receiving data from ESP32-WROOM (kept as before)
+# MQTT Client for receiving data from ESP32-WROOM (restored with more topics)
 # -----------------------
 mqtt_broker = "broker.hivemq.com"
 mqtt_port = 1883
-mqtt_topic_humidity = "esp32/soil_moisture"
-mqtt_topic_flow = "esp32/water_flow"
 
+# Topics we listen to - allow multiple sensor topics
+mqtt_topics = [
+    ("esp32/soil_moisture", 0),
+    ("esp32/temperature", 0),
+    ("esp32/humidity", 0),
+    ("esp32/water_flow", 0),
+    ("esp32/pump_state", 0),
+    # you can add "esp32/device/<id>/..." etc.
+]
+
+# Live containers
 live_soil_moisture = []
 live_water_flow = []
+live_temperature = []
+live_air_humidity = []
+pump_states = []  # records of pump state changes
+last_seen = {}  # topic -> datetime for connectivity checks
+
+# Helper: parse payload which might be plain number or JSON
+def parse_payload(payload_str):
+    # Try JSON
+    try:
+        data = json.loads(payload_str)
+        return data
+    except:
+        # try float
+        try:
+            v = float(payload_str)
+            return v
+        except:
+            return payload_str  # fallback raw
 
 def on_connect(client, userdata, flags, rc):
-    print(f"Connected with result code {rc}")
-    client.subscribe(mqtt_topic_humidity)
-    client.subscribe(mqtt_topic_flow)
+    print(f"Connected to MQTT broker with result code {rc}")
+    for t, q in mqtt_topics:
+        client.subscribe(t, q)
 
 def on_message(client, userdata, msg):
     topic = msg.topic
-    payload = msg.payload.decode()
+    payload_raw = msg.payload.decode(errors="ignore")
     now_iso = datetime.now(vn_tz).isoformat()
-    try:
-        val = float(payload)
-    except:
-        val = None
-    if val is not None:
-        if topic == mqtt_topic_humidity:
-            live_soil_moisture.append({"timestamp": now_iso, "sensor_hum": val, "location": selected_city})
+    # update last seen by topic (or by device if topic includes device id)
+    last_seen[topic] = datetime.now(vn_tz)
+    parsed = parse_payload(payload_raw)
+    # if parsed is dict, look for keys
+    if isinstance(parsed, dict):
+        # soil moisture
+        if "soil_moisture" in parsed or "sensor_hum" in parsed:
+            val = parsed.get("soil_moisture") or parsed.get("sensor_hum")
+            try:
+                val = float(val)
+            except:
+                val = None
+            if val is not None:
+                live_soil_moisture.append({"timestamp": now_iso, "sensor_hum": val, "location": selected_city})
+                hist = load_json(HISTORY_FILE, [])
+                hist.append({"timestamp": now_iso, "sensor_hum": val, "sensor_temp": parsed.get("sensor_temp"), "location": selected_city})
+                save_json(HISTORY_FILE, filter_recent_list(hist, "timestamp", days=365))
+        # temperature
+        if "temperature" in parsed or "sensor_temp" in parsed:
+            val = parsed.get("temperature") or parsed.get("sensor_temp")
+            try:
+                val = float(val)
+            except:
+                val = None
+            if val is not None:
+                live_temperature.append({"timestamp": now_iso, "sensor_temp": val, "location": selected_city})
+                hist = load_json(HISTORY_FILE, [])
+                # append a combined record if sensible
+                hist.append({"timestamp": now_iso, "sensor_temp": val, "location": selected_city})
+                save_json(HISTORY_FILE, filter_recent_list(hist, "timestamp", days=365))
+        # air humidity
+        if "humidity" in parsed and not ("soil" in parsed):
+            try:
+                val = float(parsed.get("humidity"))
+            except:
+                val = None
+            if val is not None:
+                live_air_humidity.append({"timestamp": now_iso, "air_humidity": val, "location": selected_city})
+                hist = load_json(HISTORY_FILE, [])
+                hist.append({"timestamp": now_iso, "air_humidity": val, "location": selected_city})
+                save_json(HISTORY_FILE, filter_recent_list(hist, "timestamp", days=365))
+        # flow
+        if "flow" in parsed or "water_flow" in parsed:
+            val = parsed.get("flow") or parsed.get("water_flow")
+            try:
+                val = float(val)
+            except:
+                val = None
+            if val is not None:
+                live_water_flow.append({"time": now_iso, "flow": val, "location": selected_city})
+                flow = load_json(FLOW_FILE, [])
+                flow.append({"time": now_iso, "flow": val, "location": selected_city})
+                save_json(FLOW_FILE, filter_recent_list(flow, "time", days=365))
+        # pump state
+        if "pump" in parsed or "pump_state" in parsed:
+            st_val = parsed.get("pump") or parsed.get("pump_state")
+            pump_states.append({"time": now_iso, "pump_state": str(st_val), "location": selected_city})
             hist = load_json(HISTORY_FILE, [])
-            hist.append({"timestamp": now_iso, "sensor_hum": val, "location": selected_city})
-            hist_trimmed = filter_recent_list(hist, "timestamp", days=365)
-            save_json(HISTORY_FILE, hist_trimmed)
-        elif topic == mqtt_topic_flow:
-            live_water_flow.append({"time": now_iso, "flow": val, "location": selected_city})
-            flow = load_json(FLOW_FILE, [])
-            flow.append({"time": now_iso, "flow": val, "location": selected_city})
-            flow_trimmed = filter_recent_list(flow, "time", days=365)
-            save_json(FLOW_FILE, flow_trimmed)
+            hist.append({"timestamp": now_iso, "event": "pump_state", "value": str(st_val), "location": selected_city})
+            save_json(HISTORY_FILE, filter_recent_list(hist, "timestamp", days=365))
 
+    else:
+        # payload is scalar or string
+        # determine by topic
+        if "soil_moisture" in topic:
+            try:
+                val = float(parsed)
+                live_soil_moisture.append({"timestamp": now_iso, "sensor_hum": val, "location": selected_city})
+                hist = load_json(HISTORY_FILE, [])
+                hist.append({"timestamp": now_iso, "sensor_hum": val, "location": selected_city})
+                save_json(HISTORY_FILE, filter_recent_list(hist, "timestamp", days=365))
+            except:
+                pass
+        elif "temperature" in topic:
+            try:
+                val = float(parsed)
+                live_temperature.append({"timestamp": now_iso, "sensor_temp": val, "location": selected_city})
+                hist = load_json(HISTORY_FILE, [])
+                hist.append({"timestamp": now_iso, "sensor_temp": val, "location": selected_city})
+                save_json(HISTORY_FILE, filter_recent_list(hist, "timestamp", days=365))
+            except:
+                pass
+        elif "humidity" in topic:
+            try:
+                val = float(parsed)
+                live_air_humidity.append({"timestamp": now_iso, "air_humidity": val, "location": selected_city})
+                hist = load_json(HISTORY_FILE, [])
+                hist.append({"timestamp": now_iso, "air_humidity": val, "location": selected_city})
+                save_json(HISTORY_FILE, filter_recent_list(hist, "timestamp", days=365))
+            except:
+                pass
+        elif "water_flow" in topic or "flow" in topic:
+            try:
+                val = float(parsed)
+                live_water_flow.append({"time": now_iso, "flow": val, "location": selected_city})
+                flow = load_json(FLOW_FILE, [])
+                flow.append({"time": now_iso, "flow": val, "location": selected_city})
+                save_json(FLOW_FILE, filter_recent_list(flow, "time", days=365))
+            except:
+                pass
+        elif "pump" in topic:
+            pump_states.append({"time": now_iso, "pump_state": str(parsed), "location": selected_city})
+            hist = load_json(HISTORY_FILE, [])
+            hist.append({"timestamp": now_iso, "event": "pump_state", "value": str(parsed), "location": selected_city})
+            save_json(HISTORY_FILE, filter_recent_list(hist, "timestamp", days=365))
+
+# MQTT loop in background thread
 def mqtt_thread():
     client = mqtt.Client()
     client.on_connect = on_connect
@@ -799,30 +918,96 @@ def mqtt_thread():
 threading.Thread(target=mqtt_thread, daemon=True).start()
 
 # -----------------------
-# Current live charts
+# Connectivity status & pump state display
+# -----------------------
+st.header(_("🔌 Trạng thái kết nối ESP32 & trạng thái bơm", "🔌 ESP32 Connection & Pump Status"))
+
+# show last seen for each topic we track
+status_rows = []
+now_dt = datetime.now(vn_tz)
+for t, _ in mqtt_topics:
+    last = last_seen.get(t)
+    if last:
+        age = (now_dt - last).total_seconds()
+        online = age <= 120  # consider online if last message within 2 minutes
+        status_rows.append({"topic": t, "last_seen": last.astimezone(vn_tz).strftime("%d/%m/%Y %H:%M:%S"), "status": _("Online","Online") if online else _("Offline","Offline")})
+    else:
+        status_rows.append({"topic": t, "last_seen": "-", "status": _("Offline","Offline")})
+st.table(pd.DataFrame(status_rows))
+
+# Latest pump state
+if pump_states:
+    last_pump = pump_states[-1]
+    st.markdown(f"**{_('Trạng thái bơm mới nhất', 'Latest pump state')}:** {last_pump.get('pump_state')} — {_('thời gian', 'time')}: {last_pump.get('time')}")
+else:
+    st.info(_("Chưa có bản ghi trạng thái bơm.", "No pump state records."))
+
+# -----------------------
+# Current live charts (show restored sensor streams)
 # -----------------------
 st.header(_("📊 Biểu đồ dữ liệu cảm biến hiện tại", "📊 Current Sensor Data Charts"))
-df_soil_live = pd.DataFrame(live_soil_moisture)
-df_flow_live = pd.DataFrame(live_water_flow)
+
+# Build dataframes from live lists and persistent files (so page refresh keeps historical)
+# Combine in-memory live buffers with stored history to show continuity
+hist_store = load_json(HISTORY_FILE, [])
+flow_store = load_json(FLOW_FILE, [])
+
+# soil moisture (history)
+soil_records = [r for r in hist_store if "sensor_hum" in r and (r.get("location") == selected_city or r.get("location") == "")]
+df_soil = pd.DataFrame(soil_records)
+if not df_soil.empty:
+    df_soil["timestamp"] = pd.to_datetime(df_soil["timestamp"], errors="coerce")
+    df_soil = df_soil.sort_values("timestamp")
+# temperature
+temp_records = [r for r in hist_store if "sensor_temp" in r and (r.get("location") == selected_city or r.get("location") == "")]
+df_temp = pd.DataFrame(temp_records)
+if not df_temp.empty:
+    df_temp["timestamp"] = pd.to_datetime(df_temp["timestamp"], errors="coerce")
+    df_temp = df_temp.sort_values("timestamp")
+# flow
+flow_records = [r for r in flow_store if (r.get("location") == selected_city or r.get("location") == "")]
+df_flow = pd.DataFrame(flow_records)
+if not df_flow.empty:
+    df_flow["time"] = pd.to_datetime(df_flow["time"], errors="coerce")
+    df_flow = df_flow.sort_values("time")
 
 col1, col2 = st.columns(2)
 with col1:
     st.markdown(_("### Độ ẩm đất (Sensor Humidity)", "### Soil Moisture"))
-    if not df_soil_live.empty and "sensor_hum" in df_soil_live.columns:
-        df_soil_live["timestamp_parsed"] = pd.to_datetime(df_soil_live["timestamp"], errors="coerce")
-        df_soil_live = df_soil_live.sort_values("timestamp_parsed")
-        st.line_chart(df_soil_live.set_index("timestamp_parsed")["sensor_hum"])
+    if not df_soil.empty and "sensor_hum" in df_soil.columns:
+        series = df_soil.set_index("timestamp")["sensor_hum"].astype(float)
+        st.line_chart(series)
+        st.write(_("Giá trị mới nhất:", "Latest value:"), series.iloc[-1])
     else:
-        st.info(_("Chưa có dữ liệu độ ẩm đất nhận từ ESP32.", "No soil moisture data received from ESP32."))
+        st.info(_("Chưa có dữ liệu độ ẩm đất nhận từ ESP32 hoặc file upload.", "No soil moisture data received from ESP32 or uploads."))
 
 with col2:
     st.markdown(_("### Lưu lượng nước (Water Flow)", "### Water Flow"))
-    if not df_flow_live.empty and "flow" in df_flow_live.columns:
-        df_flow_live["time_parsed"] = pd.to_datetime(df_flow_live["time"], errors="coerce")
-        df_flow_live = df_flow_live.sort_values("time_parsed")
-        st.line_chart(df_flow_live.set_index("time_parsed")["flow"])
+    if not df_flow.empty and "flow" in df_flow.columns:
+        seriesf = df_flow.set_index("time")["flow"].astype(float)
+        st.line_chart(seriesf)
+        st.write(_("Giá trị mới nhất:", "Latest value:"), seriesf.iloc[-1])
     else:
-        st.info(_("Chưa có dữ liệu lưu lượng nước nhận từ ESP32.", "No water flow data received from ESP32."))
+        st.info(_("Chưa có dữ liệu lưu lượng nước nhận từ ESP32 hoặc file upload.", "No water flow data received from ESP32 or uploads."))
+
+# Show temperature and air humidity charts below
+col3, col4 = st.columns(2)
+with col3:
+    st.markdown(_("### Nhiệt độ (Temperature)", "### Temperature"))
+    if not df_temp.empty and "sensor_temp" in df_temp.columns:
+        st.line_chart(df_temp.set_index("timestamp")["sensor_temp"].astype(float))
+    else:
+        st.info(_("Chưa có dữ liệu nhiệt độ.", "No temperature data."))
+
+with col4:
+    st.markdown(_("### Độ ẩm không khí (Air Humidity)", "### Air Humidity"))
+    air_records = [r for r in hist_store if "air_humidity" in r and (r.get("location") == selected_city or r.get("location") == "")]
+    df_air = pd.DataFrame(air_records)
+    if not df_air.empty:
+        df_air["timestamp"] = pd.to_datetime(df_air["timestamp"], errors="coerce")
+        st.line_chart(df_air.set_index("timestamp")["air_humidity"].astype(float))
+    else:
+        st.info(_("Chưa có dữ liệu độ ẩm không khí.", "No air humidity data."))
 
 # -----------------------
 # End
