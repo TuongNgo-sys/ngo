@@ -11,7 +11,7 @@ from PIL import Image
 import requests
 import paho.mqtt.client as mqtt
 import matplotlib.pyplot as plt  # plotting
-from streamlit_autorefresh import st_autorefresh
+#from streamlit_autorefresh import st_autorefresh
 # -----------------------
 # Config & helpers
 # -----------------------
@@ -780,3 +780,4 @@ if user_type == _("Người điều khiển", "Control Administrator"):
 st.markdown("---")
 st.markdown(_("© 2025 Ngô Nguyễn Định Tường", "© 2025 Ngo Nguyen Dinh Tuong"))
 st.markdown(_("© 2025 Mai Phúc Khang", "© 2025 Mai Phuc Khang"))
+
