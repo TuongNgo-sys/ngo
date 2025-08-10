@@ -932,7 +932,7 @@ for t, _ in mqtt_topics:
         online = age <= 120  # consider online if last message within 2 minutes
         status_rows.append({"topic": t, "last_seen": last.astimezone(vn_tz).strftime("%d/%m/%Y %H:%M:%S"), "status": _("Online","Online") if online else _("Offline","Offline")})
     else:
-        status_rows.append({"topic": t, "last_seen": "-", "status": _("Offline","Offline")})
+        status_rows.append({"topic": t, "last_seen": "-", "status": _("Offline")})
 st.table(pd.DataFrame(status_rows))
 
 # Latest pump state
@@ -1015,3 +1015,4 @@ with col4:
 st.markdown("---")
 st.markdown(_("© 2025 Ngô Nguyễn Định Tường", "© 2025 Ngo Nguyen Dinh Tuong"))
 st.markdown(_("© 2025 Mai Phúc Khang", "© 2025 Mai Phuc Khang"))
+
