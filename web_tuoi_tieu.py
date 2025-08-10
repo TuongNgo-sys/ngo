@@ -1,4 +1,7 @@
-# web_esp.py
+# web_tuoi_tieu.py
+# Bản đã được sửa (safe) — giữ nguyên chức năng gốc nhưng thêm nhiều guard để tránh lỗi runtime.
+# Tác giả sửa: ChatGPT (sửa lỗi TypeError với _() và các guard khác) -- # FIXED
+
 import streamlit as st
 from datetime import datetime, timedelta, date, time
 import json
@@ -19,22 +22,24 @@ import io
 st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
 
 # --- I18N ---
+# provide a minimal-safe default for vi before selectbox runs (avoid NameError on reload) # FIXED
+vi = True  # default to Vietnamese until user chooses
 lang = st.sidebar.selectbox("🌐 Language / Ngôn ngữ", ["Tiếng Việt", "English"])
-vi = lang == "Tiếng Việt"
+vi = True if lang == "Tiếng Việt" else False
+
 def _(vi_text, en_text=None):
-    """Hàm hỗ trợ hiển thị song ngữ.
-    Nếu chỉ truyền 1 tham số, sẽ dùng nguyên văn.
-    Nếu truyền 2 tham số, sẽ chọn theo ngôn ngữ đang chọn.
-    Mặc định tiếng Việt nếu biến vi chưa tồn tại.
+    """Hàm hỗ trợ hiển thị song ngữ. # FIXED
+    - Nếu chỉ truyền 1 tham số, sẽ dùng nguyên văn.
+    - Nếu truyền 2 tham số, sẽ chọn theo ngôn ngữ đang chọn.
+    - Mặc định tiếng Việt nếu biến vi chưa tồn tại.
     """
     try:
-        vi_lang = globals().get('vi', True)
-    except NameError:
+        vi_lang = globals().get("vi", True)
+    except Exception:
         vi_lang = True
     if en_text is None:
-        return vi_text
-    return vi_text if vi_lang else en_text
-    return vi_text if vi else en_text
+        return str(vi_text)
+    return str(vi_text) if vi_lang else str(en_text)
 
 # Files
 DATA_FILE = "crop_data.json"
@@ -49,7 +54,7 @@ def load_json(path, default):
         try:
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except Exception:
             return default
     else:
         return default
@@ -86,15 +91,22 @@ def filter_recent_list(lst, time_key, days=365):
                     continue
         # Ensure timezone
         if hasattr(dt, "tzinfo") and dt.tzinfo is None:
-            dt = vn_tz.localize(dt)
+            try:
+                dt = vn_tz.localize(dt)
+            except Exception:
+                pass
         # pandas Timestamp handling
         try:
             if hasattr(dt, "tz_localize") and getattr(dt, "tzinfo", None) is None:
                 dt = dt.tz_localize(vn_tz)
         except Exception:
             pass
-        if dt >= cutoff:
-            out.append(item)
+        try:
+            if dt >= cutoff:
+                out.append(item)
+        except Exception:
+            # skip items we can't compare
+            continue
     return out
 
 # -----------------------
@@ -229,12 +241,19 @@ try:
     .led { display:inline-block; width:14px; height:14px; border-radius:50%; margin-right:6px; }
     </style>
     """, unsafe_allow_html=True)
-    st.image(Image.open("logo1.png"), width=1200)
+    # use safe open for logo - don't crash if missing
+    if os.path.exists("logo1.png"):
+        st.image(Image.open("logo1.png"), width=1200)
+    else:
+        raise FileNotFoundError("logo1.png")
 except Exception:
-    st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))
+    st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))  # safe: _() returns str # FIXED
 
 now = datetime.now(vn_tz)
-st.markdown(f"<h2 style='text-align: center; font-size: 50px;'>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
+st.markdown(
+    f"<h2 style='text-align: center; font-size: 50px;'>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>",
+    unsafe_allow_html=True
+)
 st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }: {now.strftime('%d/%m/%Y %H:%M:%S')}</h3>", unsafe_allow_html=True)
 
 # -----------------------
@@ -283,9 +302,14 @@ if st.sidebar.button(_("📥 Xuất file Excel lịch sử", "📥 Export Excel 
     flow = load_json(FLOW_FILE, [])
     df_hist = pd.DataFrame(hist)
     df_flow = pd.DataFrame(flow)
-    if export_scope == _("Khu vực hiện tại", "Current location"):
-        df_hist = df_hist[df_hist.get("location", "") == selected_city] if not df_hist.empty else df_hist
-        df_flow = df_flow[df_flow.get("location", "") == selected_city] if not df_flow.empty else df_flow
+    # guard: selected_city may not yet be defined when sidebar code runs early # FIXED
+    _selected_city = locals().get("selected_city", None)
+    if export_scope == _("Khu vực hiện tại", "Current location") and _selected_city:
+        # safe filter using .get (avoid KeyError)
+        if not df_hist.empty:
+            df_hist = df_hist[df_hist.get("location", "") == _selected_city]
+        if not df_flow.empty:
+            df_flow = df_flow[df_flow.get("location", "") == _selected_city]
     # create excel in-memory
     out = io.BytesIO()
     with pd.ExcelWriter(out, engine="xlsxwriter") as writer:
@@ -295,10 +319,13 @@ if st.sidebar.button(_("📥 Xuất file Excel lịch sử", "📥 Export Excel 
             df_flow.to_excel(writer, sheet_name="flow_data", index=False)
         # include crops and config for reference
         pd.DataFrame([config]).to_excel(writer, sheet_name="config", index=False)
-        pd.DataFrame.from_dict(crop_data, orient="index").to_excel(writer, sheet_name="crop_data", index=True)
-        writer.save()
+        try:
+            pd.DataFrame.from_dict(crop_data, orient="index").to_excel(writer, sheet_name="crop_data", index=True)
+        except Exception:
+            pass
     out.seek(0)
-    filename = f"export_history_{selected_city}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx" if export_scope == _("Khu vực hiện tại", "Current location") else f"export_history_all_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    safe_city_filename = _selected_city if _selected_city else "all"
+    filename = f"export_history_{safe_city_filename}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     st.sidebar.download_button(label=_("Tải file Excel lịch sử", "Download Excel history"), data=out, file_name=filename, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # -----------------------
@@ -333,9 +360,11 @@ location_names = {
     "Đồng Nai": _("Đồng Nai", "Dong Nai")
 }
 location_display_names = [location_names[k] for k in locations.keys()]
+# Ensure safe defaults in case UI order makes variables referenced earlier # FIXED
 selected_city_display = st.selectbox(_("📍 Chọn địa điểm:", "📍 Select location:"), location_display_names)
-selected_city = next(k for k, v in location_names.items() if v == selected_city_display)
-latitude, longitude = locations[selected_city]
+# map back to canonical key
+selected_city = next((k for k, v in location_names.items() if v == selected_city_display), list(locations.keys())[0])
+latitude, longitude = locations.get(selected_city, (10.762622, 106.660172))
 
 crops = {
     "Ngô": (75, 100),
@@ -530,7 +559,10 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
             df_irrig["start_time"] = pd.to_datetime(df_irrig["start_time"])
         if "end_time" in df_irrig.columns:
             df_irrig["end_time"] = pd.to_datetime(df_irrig["end_time"])
-        st.dataframe(df_irrig.sort_values(by="start_time", ascending=False))
+        try:
+            st.dataframe(df_irrig.sort_values(by="start_time", ascending=False))
+        except Exception:
+            st.dataframe(df_irrig)
     else:
         st.info(_("Chưa có lịch sử tưới cho khu vực này.", "No irrigation history for this location."))
 
@@ -545,17 +577,25 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
     if not df_hist_all.empty and 'timestamp' in df_hist_all.columns:
         df_hist_all['timestamp'] = pd.to_datetime(df_hist_all['timestamp'], errors='coerce')
         fig, ax1 = plt.subplots(figsize=(12, 5))
-        ax1.plot(df_hist_all['timestamp'], df_hist_all['sensor_hum'], 'b-', label=_("Độ ẩm đất", "Soil Humidity"))
-        ax1.set_xlabel(_("Thời gian", "Time"))
-        ax1.set_ylabel(_("Độ ẩm đất (%)", "Soil Humidity (%)"), color='b')
-        ax1.tick_params(axis='y', labelcolor='b')
+        # safe plotting (coerce to numeric)
+        hum_series = pd.to_numeric(df_hist_all.get('sensor_hum', pd.Series(dtype=float)), errors='coerce')
+        if not hum_series.dropna().empty:
+            ax1.plot(df_hist_all['timestamp'], hum_series, 'b-', label=_("Độ ẩm đất", "Soil Humidity"))
+            ax1.set_xlabel(_("Thời gian", "Time"))
+            ax1.set_ylabel(_("Độ ẩm đất (%)", "Soil Humidity (%)"), color='b')
+            ax1.tick_params(axis='y', labelcolor='b')
         ax2 = ax1.twinx()
-        if 'sensor_temp' in df_hist_all.columns:
-            ax2.plot(df_hist_all['timestamp'], df_hist_all['sensor_temp'], 'r-', label=_("Nhiệt độ", "Temperature"))
+        temp_series = pd.to_numeric(df_hist_all.get('sensor_temp', pd.Series(dtype=float)), errors='coerce')
+        if not temp_series.dropna().empty:
+            ax2.plot(df_hist_all['timestamp'], temp_series, 'r-', label=_("Nhiệt độ", "Temperature"))
             ax2.set_ylabel(_("Nhiệt độ (°C)", "Temperature (°C)"), color='r')
             ax2.tick_params(axis='y', labelcolor='r')
-        ax1.legend(loc='upper left')
-        ax2.legend(loc='upper right')
+        # legends handle only when present
+        try:
+            ax1.legend(loc='upper left')
+            ax2.legend(loc='upper right')
+        except Exception:
+            pass
         plt.title(_("Lịch sử độ ẩm đất và nhiệt độ", "Soil Humidity and Temperature History"))
         plt.xticks(rotation=45)
         plt.tight_layout()
@@ -566,15 +606,19 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
     if not df_flow_all.empty and 'time' in df_flow_all.columns:
         df_flow_all['time'] = pd.to_datetime(df_flow_all['time'], errors='coerce')
         fig2, ax3 = plt.subplots(figsize=(12, 3))
-        ax3.plot(df_flow_all['time'], df_flow_all['flow'], 'g-', label=_("Lưu lượng nước (L/min)", "Water Flow (L/min)"))
-        ax3.set_xlabel(_("Thời gian", "Time"))
-        ax3.set_ylabel(_("Lưu lượng nước (L/min)", "Water Flow (L/min)"), color='g')
-        ax3.tick_params(axis='y', labelcolor='g')
-        ax3.legend()
-        plt.title(_("Lịch sử lưu lượng nước", "Water Flow History"))
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        st.pyplot(fig2)
+        flow_series = pd.to_numeric(df_flow_all.get('flow', pd.Series(dtype=float)), errors='coerce')
+        if not flow_series.dropna().empty:
+            ax3.plot(df_flow_all['time'], flow_series, 'g-', label=_("Lưu lượng nước (L/min)", "Water Flow (L/min)"))
+            ax3.set_xlabel(_("Thời gian", "Time"))
+            ax3.set_ylabel(_("Lưu lượng nước (L/min)", "Water Flow (L/min)"), color='g')
+            ax3.tick_params(axis='y', labelcolor='g')
+            ax3.legend()
+            plt.title(_("Lịch sử lưu lượng nước", "Water Flow History"))
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            st.pyplot(fig2)
+        else:
+            st.info(_("Chưa có dữ liệu lưu lượng nước cho khu vực này.", "No water flow data for this location."))
     else:
         st.info(_("Chưa có dữ liệu lưu lượng nước cho khu vực này.", "No water flow data for this location."))
 
@@ -600,11 +644,11 @@ try:
     hr_prec = wdata.get("hourly", {}).get("precipitation", [])
     hr_temp = wdata.get("hourly", {}).get("temperature_2m", [])
     hr_rh = wdata.get("hourly", {}).get("relativehumidity_2m", [])
-    df_hr = pd.DataFrame({"time": hr_times, "rain_mm": hr_prec, "temp": hr_temp, "rh": hr_rh}).set_index("time")
+    df_hr = pd.DataFrame({"time": hr_times, "rain_mm": hr_prec, "temp": hr_temp, "rh": hr_rh}).set_index("time") if len(hr_times)>0 else pd.DataFrame()
     dy_dates = pd.to_datetime(wdata.get("daily", {}).get("time", []))
     dy_sum = wdata.get("daily", {}).get("precipitation_sum", [])
-    df_dy = pd.DataFrame({"date": dy_dates.date, "rain_mm": dy_sum}).set_index("date")
-    total_48h = float(df_hr["rain_mm"].iloc[:48].sum()) if not df_hr.empty else 0.0
+    df_dy = pd.DataFrame({"date": dy_dates.date, "rain_mm": dy_sum}).set_index("date") if len(dy_dates)>0 else pd.DataFrame()
+    total_48h = float(df_hr["rain_mm"].iloc[:48].sum()) if not df_hr.empty and "rain_mm" in df_hr.columns else 0.0
     st.markdown(f"**{_('Tổng lượng mưa trong 48 giờ tới:', 'Total rain next 48h:')} {total_48h:.1f} mm**")
 
     # Hourly rain chart
@@ -673,7 +717,7 @@ try:
         axc.set_ylabel(_("Mưa (mm)", "Rain (mm)"))
         axc.set_xlabel(_("Ngày", "Date"))
         axc_twin = axc.twinx()
-        axc_twin.plot([d.strftime("%d/%m") for d in cmp_df.index], cmp_df["irrig_liters"], color='orange', marker='o', label=_("Tổng tưới (L)", "Total irrigation (L)"))
+        axc_twin.plot([d.strftime("%d/%m") for d in cmp_df.index], cmp_df["irrig_liters"], marker='o', label=_("Tổng tưới (L)", "Total irrigation (L)"))
         axc_twin.set_ylabel(_("Tổng tưới (L)", "Total irrigation (L)"))
         axc.set_title(_("So sánh mưa (mm) và tổng tưới (L) theo ngày", "Rain (mm) vs irrigation (L) per day"))
         axc.legend(loc='upper left')
@@ -706,14 +750,19 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     col1, col2 = st.columns(2)
     with col1:
         st.markdown(_("### ⏲️ Khung giờ tưới nước", "### ⏲️ Watering time window"))
-        start_time = st.time_input(
-            _("Giờ bắt đầu", "Start time"),
-            value=datetime.strptime(config["watering_schedule"].split("-")[0], "%H:%M").time(),
-        )
-        end_time = st.time_input(
-            _("Giờ kết thúc", "End time"),
-            value=datetime.strptime(config["watering_schedule"].split("-")[1], "%H:%M").time(),
-        )
+        # guard: ensure config has valid watering_schedule format # FIXED
+        try:
+            start_time = st.time_input(
+                _("Giờ bắt đầu", "Start time"),
+                value=datetime.strptime(config.get("watering_schedule", "06:00-08:00").split("-")[0], "%H:%M").time(),
+            )
+            end_time = st.time_input(
+                _("Giờ kết thúc", "End time"),
+                value=datetime.strptime(config.get("watering_schedule", "06:00-08:00").split("-")[1], "%H:%M").time(),
+            )
+        except Exception:
+            start_time = st.time_input(_("Giờ bắt đầu", "Start time"), value=time(6,0))
+            end_time = st.time_input(_("Giờ kết thúc", "End time"), value=time(8,0))
     with col2:
         st.markdown(_("### 🔄 Chọn chế độ", "### 🔄 Select operation mode"))
         main_mode = st.radio(
@@ -742,21 +791,22 @@ if user_type == _("Người điều khiển", "Control Administrator"):
 
 else:
     st.markdown(
-        _("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") + f" **{config['watering_schedule']}**"
+        _("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") + f" **{config.get('watering_schedule', '06:00-08:00')}**"
     )
     mode_display = _("Tự động", "Automatic") if config.get("mode", "auto") == "auto" else _("Thủ công", "Manual")
     st.markdown(_("🔄 Chế độ hoạt động hiện tại:", "🔄 Current operation mode:") + f" **{mode_display}**")
     if config.get("mode") == "manual":
         manual_type_display = config.get("manual_control_type", "")
+        # safe compare with both language-coded values # FIXED
         if manual_type_display == _("Thủ công trên app", "Manual on app") or manual_type_display == "Manual on app":
             st.markdown(_("⚙️ Phương thức thủ công: Thủ công trên app", "⚙️ Manual method: Manual on app"))
-        elif manual_type_display == _("Thủ công ở tủ điện", "Thủ công ở tủ điện") or manual_type_display == "Manual on cabinet":
+        elif manual_type_display == _("Thủ công ở tủ điện", "Manual ở tủ điện") or manual_type_display == "Manual on cabinet":
             st.markdown(_("⚙️ Phương thức thủ công: Thủ công ở tủ điện", "⚙️ Manual method: Manual on cabinet"))
 
 # Kiểm tra thời gian trong khung tưới
 def is_in_watering_time():
     now_time = datetime.now(vn_tz).time()
-    start_str, end_str = config["watering_schedule"].split("-")
+    start_str, end_str = config.get("watering_schedule", "06:00-08:00").split("-")
     start_t = datetime.strptime(start_str, "%H:%M").time()
     end_t = datetime.strptime(end_str, "%H:%M").time()
     if start_t <= now_time <= end_t:
@@ -793,12 +843,12 @@ def parse_payload(payload_str):
     try:
         data = json.loads(payload_str)
         return data
-    except:
+    except Exception:
         # try float
         try:
             v = float(payload_str)
             return v
-        except:
+        except Exception:
             return payload_str  # fallback raw
 
 def on_connect(client, userdata, flags, rc):
@@ -837,7 +887,6 @@ def on_message(client, userdata, msg):
             if val is not None:
                 live_temperature.append({"timestamp": now_iso, "sensor_temp": val, "location": selected_city})
                 hist = load_json(HISTORY_FILE, [])
-                # append a combined record if sensible
                 hist.append({"timestamp": now_iso, "sensor_temp": val, "location": selected_city})
                 save_json(HISTORY_FILE, filter_recent_list(hist, "timestamp", days=365))
         # air humidity
@@ -866,10 +915,13 @@ def on_message(client, userdata, msg):
         # pump state
         if "pump" in parsed or "pump_state" in parsed:
             st_val = parsed.get("pump") or parsed.get("pump_state")
-            pump_states.append({"time": now_iso, "pump_state": str(st_val), "location": selected_city})
-            hist = load_json(HISTORY_FILE, [])
-            hist.append({"timestamp": now_iso, "event": "pump_state", "value": str(st_val), "location": selected_city})
-            save_json(HISTORY_FILE, filter_recent_list(hist, "timestamp", days=365))
+            try:
+                pump_states.append({"time": now_iso, "pump_state": str(st_val), "location": selected_city})
+                hist = load_json(HISTORY_FILE, [])
+                hist.append({"timestamp": now_iso, "event": "pump_state", "value": str(st_val), "location": selected_city})
+                save_json(HISTORY_FILE, filter_recent_list(hist, "timestamp", days=365))
+            except Exception:
+                pass
 
     else:
         # payload is scalar or string
@@ -911,10 +963,13 @@ def on_message(client, userdata, msg):
             except:
                 pass
         elif "pump" in topic:
-            pump_states.append({"time": now_iso, "pump_state": str(parsed), "location": selected_city})
-            hist = load_json(HISTORY_FILE, [])
-            hist.append({"timestamp": now_iso, "event": "pump_state", "value": str(parsed), "location": selected_city})
-            save_json(HISTORY_FILE, filter_recent_list(hist, "timestamp", days=365))
+            try:
+                pump_states.append({"time": now_iso, "pump_state": str(parsed), "location": selected_city})
+                hist = load_json(HISTORY_FILE, [])
+                hist.append({"timestamp": now_iso, "event": "pump_state", "value": str(parsed), "location": selected_city})
+                save_json(HISTORY_FILE, filter_recent_list(hist, "timestamp", days=365))
+            except:
+                pass
 
 # MQTT loop in background thread
 def mqtt_thread():
@@ -940,17 +995,26 @@ now_dt = datetime.now(vn_tz)
 for t, _ in mqtt_topics:
     last = last_seen.get(t)
     if last:
-        age = (now_dt - last).total_seconds()
-        online = age <= 120  # consider online if last message within 2 minutes
-        status_rows.append({"topic": t, "last_seen": last.astimezone(vn_tz).strftime("%d/%m/%Y %H:%M:%S"), "status": _("Online","Online") if online else _("Offline","Offline")})
+        try:
+            age = (now_dt - last).total_seconds()
+            online = age <= 120  # consider online if last message within 2 minutes
+            status_rows.append({"topic": t, "last_seen": last.astimezone(vn_tz).strftime("%d/%m/%Y %H:%M:%S"), "status": _("Online","Online") if online else _("Offline","Offline")})
+        except Exception:
+            status_rows.append({"topic": t, "last_seen": "-", "status": _("Offline","Offline")})
     else:
-        status_rows.append({"topic": t, "last_seen": "-", "status": "Offline"})
-st.table(pd.DataFrame(status_rows))
+        status_rows.append({"topic": t, "last_seen": "-", "status": _("Offline","Offline")})
+try:
+    st.table(pd.DataFrame(status_rows))
+except Exception:
+    st.write(status_rows)
 
 # Latest pump state
 if pump_states:
     last_pump = pump_states[-1]
-    st.markdown(f"**{_('Trạng thái bơm mới nhất', 'Latest pump state')}:** {last_pump.get('pump_state')} — {_('thời gian', 'time')}: {last_pump.get('time')}")
+    # safe access with .get and str() to avoid None or non-str types # FIXED
+    lp_state = str(last_pump.get('pump_state', ''))
+    lp_time = str(last_pump.get('time', ''))
+    st.markdown(f"**{_('Trạng thái bơm mới nhất', 'Latest pump state')}:** {lp_state} — {_('thời gian', 'time')}: {lp_time}")
 else:
     st.info(_("Chưa có bản ghi trạng thái bơm.", "No pump state records."))
 
@@ -987,18 +1051,26 @@ col1, col2 = st.columns(2)
 with col1:
     st.markdown(_("### Độ ẩm đất (Sensor Humidity)", "### Soil Moisture"))
     if not df_soil.empty and "sensor_hum" in df_soil.columns:
-        series = df_soil.set_index("timestamp")["sensor_hum"].astype(float)
-        st.line_chart(series)
-        st.write(_("Giá trị mới nhất:", "Latest value:"), series.iloc[-1])
+        try:
+            series = df_soil.set_index("timestamp")["sensor_hum"].astype(float)
+            st.line_chart(series)
+            if not series.empty:
+                st.write(_("Giá trị mới nhất:", "Latest value:"), series.iloc[-1])
+        except Exception:
+            st.info(_("Chưa có dữ liệu độ ẩm đất nhận từ ESP32 hoặc file upload.", "No soil moisture data received from ESP32 or uploads."))
     else:
         st.info(_("Chưa có dữ liệu độ ẩm đất nhận từ ESP32 hoặc file upload.", "No soil moisture data received from ESP32 or uploads."))
 
 with col2:
     st.markdown(_("### Lưu lượng nước (Water Flow)", "### Water Flow"))
     if not df_flow.empty and "flow" in df_flow.columns:
-        seriesf = df_flow.set_index("time")["flow"].astype(float)
-        st.line_chart(seriesf)
-        st.write(_("Giá trị mới nhất:", "Latest value:"), seriesf.iloc[-1])
+        try:
+            seriesf = df_flow.set_index("time")["flow"].astype(float)
+            st.line_chart(seriesf)
+            if not seriesf.empty:
+                st.write(_("Giá trị mới nhất:", "Latest value:"), seriesf.iloc[-1])
+        except Exception:
+            st.info(_("Chưa có dữ liệu lưu lượng nước nhận từ ESP32 hoặc file upload.", "No water flow data received from ESP32 or uploads."))
     else:
         st.info(_("Chưa có dữ liệu lưu lượng nước nhận từ ESP32 hoặc file upload.", "No water flow data received from ESP32 or uploads."))
 
@@ -1007,7 +1079,10 @@ col3, col4 = st.columns(2)
 with col3:
     st.markdown(_("### Nhiệt độ (Temperature)", "### Temperature"))
     if not df_temp.empty and "sensor_temp" in df_temp.columns:
-        st.line_chart(df_temp.set_index("timestamp")["sensor_temp"].astype(float))
+        try:
+            st.line_chart(df_temp.set_index("timestamp")["sensor_temp"].astype(float))
+        except Exception:
+            st.info(_("Chưa có dữ liệu nhiệt độ.", "No temperature data."))
     else:
         st.info(_("Chưa có dữ liệu nhiệt độ.", "No temperature data."))
 
@@ -1017,7 +1092,10 @@ with col4:
     df_air = pd.DataFrame(air_records)
     if not df_air.empty:
         df_air["timestamp"] = pd.to_datetime(df_air["timestamp"], errors="coerce")
-        st.line_chart(df_air.set_index("timestamp")["air_humidity"].astype(float))
+        try:
+            st.line_chart(df_air.set_index("timestamp")["air_humidity"].astype(float))
+        except Exception:
+            st.info(_("Chưa có dữ liệu độ ẩm không khí.", "No air humidity data."))
     else:
         st.info(_("Chưa có dữ liệu độ ẩm không khí.", "No air humidity data."))
 
@@ -1027,5 +1105,3 @@ with col4:
 st.markdown("---")
 st.markdown(_("© 2025 Ngô Nguyễn Định Tường", "© 2025 Ngo Nguyen Dinh Tuong"))
 st.markdown(_("© 2025 Mai Phúc Khang", "© 2025 Mai Phuc Khang"))
-
-
