@@ -7,3 +7,4 @@ pytz
 paho-mqtt
 plotly
 streamlit-autorefresh
+flask
