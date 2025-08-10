@@ -283,26 +283,11 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         with col_a:
             if st.button(_("🔛 Bật bơm cho khu vực đã chọn", "🔛 Turn ON pump for selected plot")):
                 # lưu lịch sử tưới bắt đầu cho plot này
-                history_irrigation = load_json(HISTORY_FILE, [])
-                new_irrigation = {
-                    "location": selected_city,
-                    "plot_index": selected_plot_index,
-                    "crop": plots_for_control[selected_plot_index].get("crop"),
-                    "start_time": datetime.now(vn_tz).isoformat(),
-                    "end_time": None,
-                }
-                history_irrigation.append(new_irrigation)
-                save_json(HISTORY_FILE, history_irrigation)
+                
                 st.success(_("✅ Đã bật bơm cho khu vực.", "✅ Pump turned ON for selected plot."))
         with col_b:
             if st.button(_("⏹ Dừng bơm cho khu vực đã chọn", "⏹ Stop pump for selected plot")):
-                history_irrigation = load_json(HISTORY_FILE, [])
-                # tìm bản ghi mở gần nhất cho location & plot_index
-                for i in reversed(range(len(history_irrigation))):
-                    rec = history_irrigation[i]
-                    if rec.get("location") == selected_city and rec.get("plot_index") == selected_plot_index and rec.get("end_time") is None:
-                        history_irrigation[i]["end_time"] = datetime.now(vn_tz).isoformat()
-                        save_json(HISTORY_FILE, history_irrigation)
+                
                         st.success(_("🚰 Đã dừng bơm cho khu vực.", "🚰 Pump stopped for selected plot."))
                         break
                 else:
@@ -357,20 +342,7 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
         st.info(_("📍 Chưa có thông tin gieo trồng tại khu vực này.", "📍 No crop information available in this location."))
 
     # 3. Hiển thị lịch sử tưới (đã được lọc 1 năm khi load)
-    st.subheader(_("📜 Lịch sử tưới nước", "📜 Irrigation History"))
-    irrigation_hist = load_json(HISTORY_FILE, [])
-    filtered_irrigation = [r for r in irrigation_hist if r.get("location") == selected_city]
-    if filtered_irrigation:
-        df_irrig = pd.DataFrame(filtered_irrigation)
-        if "start_time" in df_irrig.columns:
-            df_irrig["start_time"] = pd.to_datetime(df_irrig["start_time"])
-        if "end_time" in df_irrig.columns:
-            df_irrig["end_time"] = pd.to_datetime(df_irrig["end_time"])
-        st.dataframe(df_irrig.sort_values(by="start_time", ascending=False))
-    else:
-        st.info(_("Chưa có lịch sử tưới cho khu vực này.", "No irrigation history for this location."))
-
-    # 4. Biểu đồ lịch sử độ ẩm đất và lưu lượng nước (1 năm)
+    
     st.header(_("📊 Biểu đồ lịch sử cảm biến", "📊 Sensor History Charts"))
 
     history_data = load_json(HISTORY_FILE, [])
@@ -616,62 +588,20 @@ if user_type == _("Người điều khiển", "Control Administrator"):
                     # Bật tưới tự động
                     st.success(_("✅ Độ ẩm thấp, bắt đầu tưới tự động.", "✅ Moisture low, starting automatic irrigation."))
                     # Lưu lịch sử tưới bắt đầu
-                    history_irrigation = load_json(HISTORY_FILE, [])
-                    # Nếu tưới chưa bật lần nào trong lịch sử đang mở
-                    if not history_irrigation or history_irrigation[-1].get("end_time") is not None:
-                        # include plot_index=0 by default for existing logic
-                        new_irrigation = {
-                            "location": selected_city,
-                            "plot_index": 0,
-                            "crop": crop_key,
-                            "start_time": datetime.now(vn_tz).isoformat(),
-                            "end_time": None,
-                        }
-                        history_irrigation.append(new_irrigation)
-                        # trim & save
-                        history_irrigation_trimmed = filter_recent_list(history_irrigation, "start_time", days=365) if False else history_irrigation
-                        # (we keep existing entries; main trimming done at load time)
-                        save_json(HISTORY_FILE, history_irrigation)
+                    
                     # Hiển thị nút dừng tưới thủ công
                     if st.button(_("⏹ Dừng tưới", "⏹ Stop irrigation")):
-                        history_irrigation = load_json(HISTORY_FILE, [])
-                        # Cập nhật thời gian kết thúc lần tưới gần nhất chưa đóng
-                        for i in reversed(range(len(history_irrigation))):
-                            if history_irrigation[i].get("location") == selected_city and history_irrigation[i].get("end_time") is None:
-                                history_irrigation[i]["end_time"] = datetime.now(vn_tz).isoformat()
-                                save_json(HISTORY_FILE, history_irrigation)
+                        
                                 st.success(_("🚰 Đã dừng tưới.", "🚰 Irrigation stopped."))
                                 break
                 else:
                     st.info(_("🌿 Độ ẩm đất đủ, không cần tưới.", "🌿 Soil moisture adequate, no irrigation needed."))
                     # Nếu có phiên tưới đang mở thì đóng lại
-                    history_irrigation = load_json(HISTORY_FILE, [])
-                    if history_irrigation and history_irrigation[-1].get("end_time") is None:
-                        history_irrigation[-1]["end_time"] = datetime.now(vn_tz).isoformat()
-                        save_json(HISTORY_FILE, history_irrigation)
+                    
             else:
                 st.warning(_("⚠️ Hệ thống đang ở chế độ thủ công.", "⚠️ System is in manual mode."))
         else:
             st.info(_("🕒 Không phải giờ tưới.", "🕒 Not watering time."))
 
     # Hiển thị lịch sử tưới của khu vực (1 năm)
-    st.subheader(_("📜 Lịch sử tưới nước", "📜 Irrigation History"))
-    irrigation_hist = load_json(HISTORY_FILE, [])
-    filtered_irrigation = [r for r in irrigation_hist if r.get("location") == selected_city]
-    if filtered_irrigation:
-        df_irrig = pd.DataFrame(filtered_irrigation)
-        if "start_time" in df_irrig.columns:
-            df_irrig["start_time"] = pd.to_datetime(df_irrig["start_time"])
-        if "end_time" in df_irrig.columns:
-            df_irrig["end_time"] = pd.to_datetime(df_irrig["end_time"])
-        st.dataframe(df_irrig.sort_values(by="start_time", ascending=False))
-    else:
-        st.info(_("Chưa có lịch sử tưới cho khu vực này.", "No irrigation history for this location."))
-
-# -----------------------
-# Kết thúc
-# -----------------------
-st.markdown("---")
-st.markdown(_("© 2025 Ngô Nguyễn Định Tường", "© 2025 Ngo Nguyen Dinh Tuong"))
-st.markdown(_("© 2025 Mai Phúc Khang", "© 2025 Mai Phuc Khang"))
-
+    
