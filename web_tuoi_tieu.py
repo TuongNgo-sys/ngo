@@ -334,6 +334,61 @@ required_soil_moisture = {"Ngô": 65, "Chuối": 70, "Ớt": 65}
 crop_names = {"Ngô": _("Ngô", "Corn"), "Chuối": _("Chuối", "Banana"), "Ớt": _("Ớt", "Chili pepper")}
 
 # -----------------------
+# Mode and Watering Schedule (shared config.json)
+# -----------------------
+st.header(_("⚙️ Cấu hình chung hệ thống", "⚙️ System General Configuration"))
+
+if user_type == _("Người điều khiển", "Control Administrator"):
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(_("### ⏲️ Khung giờ tưới nước", "### ⏲️ Watering time window"))
+        start_time = st.time_input(
+            _("Giờ bắt đầu", "Start time"),
+            value=datetime.strptime(config["watering_schedule"].split("-")[0], "%H:%M").time(),
+        )
+        end_time = st.time_input(
+            _("Giờ kết thúc", "End time"),
+            value=datetime.strptime(config["watering_schedule"].split("-")[1], "%H:%M").time(),
+        )
+    with col2:
+        st.markdown(_("### 🔄 Chọn chế độ", "### 🔄 Select operation mode"))
+        main_mode = st.radio(
+            _("Chọn chế độ điều khiển", "Select control mode"),
+            [_("Tự động", "Automatic"), _("Thủ công", "Manual")],
+            index=0 if config.get("mode", "auto") == "auto" else 1,
+        )
+
+        manual_control_type = None
+        if main_mode == _("Thủ công", "Manual"):
+            manual_control_type = st.radio(
+                _("Chọn phương thức thủ công", "Select manual control type"),
+                [_("Thủ công trên app", "Manual on app"), _("Thủ công ở tủ điện", "Manual on cabinet")],
+            )
+
+    if st.button(_("💾 Lưu cấu hình", "💾 Save configuration")):
+        config["watering_schedule"] = f"{start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}"
+        if main_mode == _("Tự động", "Automatic"):
+            config["mode"] = "auto"
+            config.pop("manual_control_type", None)
+        else:
+            config["mode"] = "manual"
+            config["manual_control_type"] = manual_control_type
+        save_json(CONFIG_FILE, config)
+        st.success(_("Đã lưu cấu hình.", "Configuration saved."))
+
+else:
+    st.markdown(
+        _("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") + f" **{config['watering_schedule']}**"
+    )
+    mode_display = _("Tự động", "Automatic") if config.get("mode", "auto") == "auto" else _("Thủ công", "Manual")
+    st.markdown(_("🔄 Chế độ hoạt động hiện tại:", "🔄 Current operation mode:") + f" **{mode_display}**")
+    if config.get("mode") == "manual":
+        manual_type_display = config.get("manual_control_type", "")
+        if manual_type_display == _("Thủ công trên app", "Manual on app") or manual_type_display == "Manual on app":
+            st.markdown(_("⚙️ Phương thức thủ công: Thủ công trên app", "⚙️ Manual method: Manual on app"))
+        elif manual_type_display == _("Thủ công ở tủ điện", "Thủ công ở tủ điện") or manual_type_display == "Manual on cabinet":
+            st.markdown(_("⚙️ Phương thức thủ công: Thủ công ở tủ điện", "⚙️ Manual method: Manual on cabinet"))
+# -----------------------
 # Crop management UI + controller features (unchanged behavior mostly)
 # -----------------------
 st.header(_("🌱 Quản lý cây trồng", "🌱 Crop Management"))
@@ -684,63 +739,6 @@ try:
 
 except Exception as e:
     st.error(_("Lỗi khi lấy dữ liệu thời tiết:", "Error fetching weather data:") + f" {e}")
-
-# -----------------------
-# Mode and Watering Schedule (shared config.json)
-# -----------------------
-st.header(_("⚙️ Cấu hình chung hệ thống", "⚙️ System General Configuration"))
-
-if user_type == _("Người điều khiển", "Control Administrator"):
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(_("### ⏲️ Khung giờ tưới nước", "### ⏲️ Watering time window"))
-        start_time = st.time_input(
-            _("Giờ bắt đầu", "Start time"),
-            value=datetime.strptime(config["watering_schedule"].split("-")[0], "%H:%M").time(),
-        )
-        end_time = st.time_input(
-            _("Giờ kết thúc", "End time"),
-            value=datetime.strptime(config["watering_schedule"].split("-")[1], "%H:%M").time(),
-        )
-    with col2:
-        st.markdown(_("### 🔄 Chọn chế độ", "### 🔄 Select operation mode"))
-        main_mode = st.radio(
-            _("Chọn chế độ điều khiển", "Select control mode"),
-            [_("Tự động", "Automatic"), _("Thủ công", "Manual")],
-            index=0 if config.get("mode", "auto") == "auto" else 1,
-        )
-
-        manual_control_type = None
-        if main_mode == _("Thủ công", "Manual"):
-            manual_control_type = st.radio(
-                _("Chọn phương thức thủ công", "Select manual control type"),
-                [_("Thủ công trên app", "Manual on app"), _("Thủ công ở tủ điện", "Manual on cabinet")],
-            )
-
-    if st.button(_("💾 Lưu cấu hình", "💾 Save configuration")):
-        config["watering_schedule"] = f"{start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}"
-        if main_mode == _("Tự động", "Automatic"):
-            config["mode"] = "auto"
-            config.pop("manual_control_type", None)
-        else:
-            config["mode"] = "manual"
-            config["manual_control_type"] = manual_control_type
-        save_json(CONFIG_FILE, config)
-        st.success(_("Đã lưu cấu hình.", "Configuration saved."))
-
-else:
-    st.markdown(
-        _("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") + f" **{config['watering_schedule']}**"
-    )
-    mode_display = _("Tự động", "Automatic") if config.get("mode", "auto") == "auto" else _("Thủ công", "Manual")
-    st.markdown(_("🔄 Chế độ hoạt động hiện tại:", "🔄 Current operation mode:") + f" **{mode_display}**")
-    if config.get("mode") == "manual":
-        manual_type_display = config.get("manual_control_type", "")
-        if manual_type_display == _("Thủ công trên app", "Manual on app") or manual_type_display == "Manual on app":
-            st.markdown(_("⚙️ Phương thức thủ công: Thủ công trên app", "⚙️ Manual method: Manual on app"))
-        elif manual_type_display == _("Thủ công ở tủ điện", "Thủ công ở tủ điện") or manual_type_display == "Manual on cabinet":
-            st.markdown(_("⚙️ Phương thức thủ công: Thủ công ở tủ điện", "⚙️ Manual method: Manual on cabinet"))
-
 # Kiểm tra thời gian trong khung tưới
 def is_in_watering_time():
     now_time = datetime.now(vn_tz).time()
@@ -1015,3 +1013,4 @@ with col4:
 st.markdown("---")
 st.markdown(_("© 2025 Ngô Nguyễn Định Tường", "© 2025 Ngo Nguyen Dinh Tuong"))
 st.markdown(_("© 2025 Mai Phúc Khang", "© 2025 Mai Phuc Khang"))
+
