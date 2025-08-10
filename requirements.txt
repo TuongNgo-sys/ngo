@@ -6,3 +6,4 @@ matplotlib
 pytz
 paho-mqtt
 plotly
+streamlit-autorefresh
