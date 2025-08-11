@@ -82,7 +82,12 @@ lang = st.sidebar.selectbox("🌐 Language / Ngôn ngữ", ["Tiếng Việt", "E
 vi = lang == "Tiếng Việt"
 def _(vi_text, en_text):
     return vi_text if vi else en_text
-
+def big_label(vi_text, en_text, size=18):
+    """
+    Trả về HTML label đã dịch (dựa trên _()) và bọc thẻ <span> để phóng to.
+    """
+    text = _(vi_text, en_text)
+    return f"<span style='font-size:{size}px; font-weight:700'>{text}</span>"
 # Files
 DATA_FILE = "crop_data.json"
 HISTORY_FILE = "history_irrigation.json"   # lưu lịch sử sensor + tưới
@@ -237,8 +242,8 @@ location_names = {
 }
 location_display_names = [location_names[k] for k in locations.keys()]
 #selected_city_display = st.selectbox(_("📍 Chọn địa điểm:", "📍 Select location:"), location_display_names)
-st.markdown("<span style='font-size:16px; font-weight:bold;'>📍 Chọn địa điểm:</span>", unsafe_allow_html=True)
-selected_city_display = st.selectbox("", location_display_names)
+st.markdown(big_label("📍 Chọn địa điểm:", "📍 Select location:"), unsafe_allow_html=True)
+selected_city_display = st.selectbox("", location_display_names, key="selected_city")
 selected_city = next(k for k, v in location_names.items() if v == selected_city_display)
 latitude, longitude = locations[selected_city]
 
@@ -284,7 +289,9 @@ if user_type == _("Người điều khiển", "Control Administrator"):
 
     area_list = list(areas.keys())
     area_list.append(_("➕ Thêm khu vực mới", "➕ Add new area"))
-    selected_area = st.selectbox(_("Chọn khu vực trồng", "Select planting area"), area_list)
+    #selected_area = st.selectbox(_("Chọn khu vực trồng", "Select planting area"), area_list)
+    st.markdown(big_label("Chọn khu vực trồng", "Select planting area"), unsafe_allow_html=True)
+    selected_area = st.selectbox("", area_list, key="selected_area")
 
     if selected_area == _("➕ Thêm khu vực mới", "➕ Add new area"):
         new_area_name = st.text_input(_("Nhập tên khu vực mới", "Enter new area name"))
@@ -303,7 +310,10 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         st.subheader(_("Thêm cây vào khu vực", "Add crop to area"))
         add_crop_display = st.selectbox(_("Chọn loại cây để thêm", "Select crop to add"), [crop_names[k] for k in crops.keys()])
         add_crop_key = next(k for k, v in crop_names.items() if v == add_crop_display)
-        add_planting_date = st.date_input(_("Ngày gieo trồng", "Planting date for this crop"), value=date.today())
+        #add_planting_date = st.date_input(_("Ngày gieo trồng", "Planting date for this crop"), value=date.today())
+        st.markdown(big_label("Ngày gieo trồng", "Planting date for this crop"), unsafe_allow_html=True)
+        add_planting_date = st.date_input("", value=date.today(), key=f"planting_date_{add_crop_key}")
+
         if st.button(_("➕ Thêm cây", "➕ Add crop")):
             crop_entry = {"crop": add_crop_key, "planting_date": add_planting_date.isoformat()}
             areas[selected_area].append(crop_entry)
@@ -345,10 +355,9 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         config["moisture_thresholds"] = {"Ngô": 65, "Chuối": 70, "Ớt": 65}
     moisture_thresholds = config["moisture_thresholds"]
     current_threshold = moisture_thresholds.get(add_crop_key, 65)
-    new_threshold = st.slider(
-        _(f"Đặt độ ẩm cho {crop_names[add_crop_key]} là: ", f"Set humidity for {crop_names[add_crop_key]} is:"),
-        min_value=0, max_value=100, value=current_threshold
-    )
+    st.markdown(big_label(f"Đặt độ ẩm cho {crop_names[add_crop_key]} là:", f"Set humidity for {crop_names[add_crop_key]} is:"), unsafe_allow_html=True)
+    new_threshold = st.slider("", min_value=0, max_value=100, value=current_threshold, key=f"slider_{add_crop_key}")
+
     if new_threshold != current_threshold:
         moisture_thresholds[add_crop_key] = new_threshold
         config["moisture_thresholds"] = moisture_thresholds
@@ -401,11 +410,18 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     col1, col2 = st.columns(2)
     with col1:
         st.markdown(_("### ⏲️ Khung giờ tưới nước", "### ⏲️ Watering time window"))
-        start_time = st.time_input(_("Giờ bắt đầu", "Start time"), value=datetime.strptime(config.get("watering_schedule","06:00-08:00").split("-")[0], "%H:%M").time())
-        end_time = st.time_input(_("Giờ kết thúc", "End time"), value=datetime.strptime(config.get("watering_schedule","06:00-08:00").split("-")[1], "%H:%M").time())
+        #start_time = st.time_input(_("Giờ bắt đầu", "Start time"), value=datetime.strptime(config.get("watering_schedule","06:00-08:00").split("-")[0], "%H:%M").time())
+        #end_time = st.time_input(_("Giờ kết thúc", "End time"), value=datetime.strptime(config.get("watering_schedule","06:00-08:00").split("-")[1], "%H:%M").time())
+        st.markdown(big_label("Giờ bắt đầu", "Start time"), unsafe_allow_html=True)
+        start_time = st.time_input("", value=..., key="start_time")
+        st.markdown(big_label("Giờ kết thúc", "End time"), unsafe_allow_html=True)
+        end_time = st.time_input("", value=..., key="end_time")
+
     with col2:
         st.markdown(_("### 🔄 Chế độ hoạt động", "### 🔄 Operation mode"))
-        mode_sel = st.radio(_("Chọn chế độ", "Select mode"), [_("Auto", "Auto"), _("Manual", "Manual")], index=0 if config.get("mode","auto")=="auto" else 1)
+        #mode_sel = st.radio(_("Chọn chế độ", "Select mode"), [_("Auto", "Auto"), _("Manual", "Manual")], index=0 if config.get("mode","auto")=="auto" else 1)
+        st.markdown(big_label("Chọn chế độ", "Select mode"), unsafe_allow_html=True)
+        mode_sel = st.radio("", [_("Auto", "Auto"), _("Manual", "Manual")], index=0 if config.get("mode","auto")=="auto" else 1, key="mode_sel")
 
     if st.button(_("💾 Lưu cấu hình", "💾 Save configuration")):
         config["watering_schedule"] = f"{start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}"
@@ -433,9 +449,17 @@ except Exception as e:
     current_weather = {"temperature_2m": "N/A", "relative_humidity_2m": "N/A", "precipitation": "N/A", "precipitation_probability": "N/A"}
 
 col1, col2, col3 = st.columns(3)
-col1.metric("🌡️ " + _("Nhiệt độ", "Temperature"), f"{current_weather.get('temperature_2m', 'N/A')} °C")
-col2.metric("💧 " + _("Độ ẩm", "Humidity"), f"{current_weather.get('relative_humidity_2m', 'N/A')} %")
-col3.metric("☔ " + _("Khả năng mưa", "Precipitation Probability"), f"{current_weather.get('precipitation_probability', 'N/A')} %")
+#col1.metric("🌡️ " + _("Nhiệt độ", "Temperature"), f"{current_weather.get('temperature_2m', 'N/A')} °C")
+#col2.metric("💧 " + _("Độ ẩm", "Humidity"), f"{current_weather.get('relative_humidity_2m', 'N/A')} %")
+#col3.metric("☔ " + _("Khả năng mưa", "Precipitation Probability"), f"{current_weather.get('precipitation_probability', 'N/A')} %")
+col1.markdown(big_label("🌡️ " + _("Nhiệt độ", "Temperature")), unsafe_allow_html=True)
+col1.metric("", f"{current_weather.get('temperature_2m', 'N/A')} °C", key="metric_temp")
+
+col2.markdown(big_label("💧 " + _("Độ ẩm", "Humidity")), unsafe_allow_html=True)
+col2.metric("", f"{current_weather.get('relative_humidity_2m', 'N/A')} %", key="metric_hum")
+
+col3.markdown(big_label("☔ " + _("Khả năng mưa", "Precipitation Probability")), unsafe_allow_html=True)
+col3.metric("", f"{current_weather.get('precipitation_probability', 'N/A')} %", key="metric_precip")
 
 # -----------------------
 # Sensor data from ESP32
@@ -479,7 +503,11 @@ if is_in_watering_time:
 else:
     st.info(_("⏰ Hiện tại không trong khung giờ tưới.", "⏰ Currently outside watering schedule."))
 
-st.write(f"Mode: **{config.get('mode','auto')}**")
+#st.write(f"Mode: **{config.get('mode','auto')}**")
+st.markdown(
+    f"<span style='font-size:18px; font-weight:700;'>{_('Mode:', 'Mode:')} <strong>{config.get('mode','auto')}</strong></span>",
+    unsafe_allow_html=True
+)
 
 # chọn khu vực để lấy crop để quyết định tưới
 selected_crop_for_decision = None
@@ -559,7 +587,9 @@ st.write(f"- {_('Dữ liệu độ ẩm hiện tại', 'Current soil moisture')}
 # -----------------------
 st.header(_("📊 Biểu đồ lịch sử độ ẩm, nhiệt độ, lưu lượng nước", "📊 Historical Charts"))
 
-chart_date = st.date_input(_("Chọn ngày để xem dữ liệu", "Select date for chart"), value=date.today())
+#chart_date = st.date_input(_("Chọn ngày để xem dữ liệu", "Select date for chart"), value=date.today())
+st.markdown(big_label("Chọn ngày để xem dữ liệu", "Select date for chart"), unsafe_allow_html=True)
+chart_date = st.date_input("", value=date.today(), key="chart_date")
 
 history_data = load_json(HISTORY_FILE, []) or []
 flow_data = load_json(FLOW_FILE, []) or []
@@ -633,6 +663,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (MQTT)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
