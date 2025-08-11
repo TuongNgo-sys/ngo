@@ -416,9 +416,18 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         #start_time = st.time_input(_("Giờ bắt đầu", "Start time"), value=datetime.strptime(config.get("watering_schedule","06:00-08:00").split("-")[0], "%H:%M").time())
         #end_time = st.time_input(_("Giờ kết thúc", "End time"), value=datetime.strptime(config.get("watering_schedule","06:00-08:00").split("-")[1], "%H:%M").time())
         st.markdown(big_label("Giờ bắt đầu", "Start time"), unsafe_allow_html=True)
-        start_time = st.time_input("", value=..., key="start_time")
+        start_time = st.time_input(
+            "",
+            value=datetime.strptime(config.get("watering_schedule", "06:00-08:00").split("-")[0], "%H:%M").time(),
+            key="start_time"
+        )
+
         st.markdown(big_label("Giờ kết thúc", "End time"), unsafe_allow_html=True)
-        end_time = st.time_input("", value=..., key="end_time")
+        end_time = st.time_input(
+            "",
+            value=datetime.strptime(config.get("watering_schedule", "06:00-08:00").split("-")[1], "%H:%M").time(),
+            key="end_time"
+        )
 
     with col2:
         st.markdown(_("### 🔄 Chế độ hoạt động", "### 🔄 Operation mode"))
@@ -666,6 +675,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (MQTT)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
