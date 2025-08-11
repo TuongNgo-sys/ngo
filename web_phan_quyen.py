@@ -441,16 +441,16 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         watering_slots = []
         for i in range(num_slots):
             slot = default_slots[i] if i < len(default_slots) else {"start": "06:00", "end": "06:30", "duration": 20}
-            c1, c2, c3 = st.columns(3)
+            c1, c2= st.columns(2)
             start_t = c1.time_input(_("Bắt đầu", "Start"),
                                     value=datetime.strptime(slot["start"], "%H:%M").time(), key=f"start_{i}")
             end_t = c2.time_input(_("Kết thúc", "End"),
                                   value=datetime.strptime(slot["end"], "%H:%M").time(), key=f"end_{i}")
-            dur = c3.number_input(_("Thời gian tưới (phút)", "Watering duration (min)"),
-                                  min_value=1, max_value=120, value=slot["duration"], key=f"duration_{i}")
+            #dur = c3.number_input(_("Thời gian tưới (phút)", "Watering duration (min)"),
+                                  #min_value=1, max_value=120, value=slot["duration"], key=f"duration_{i}")
             watering_slots.append({"start": start_t.strftime("%H:%M"),
-                                   "end": end_t.strftime("%H:%M"),
-                                   "duration": dur})
+                                   "end": end_t.strftime("%H:%M")})
+                                   #"duration": dur})
 
     with col2:
         st.markdown(_("### 🔄 Chế độ hoạt động", "### 🔄 Operation mode"))
@@ -708,6 +708,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (MQTT)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
