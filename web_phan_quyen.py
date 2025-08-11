@@ -337,7 +337,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     moisture_thresholds = config["moisture_thresholds"]
     current_threshold = moisture_thresholds.get(add_crop_key, 65)
     new_threshold = st.slider(
-        _(f"Đặt độ ẩm cho {crop_names[add_crop_key]} là: ", f"Set humidity for{crop_names[add_crop_key]} is:"),
+        _(f"Đặt độ ẩm cho {crop_names[add_crop_key]} là: ", f"Set humidity for {crop_names[add_crop_key]} is:"),
         min_value=0, max_value=100, value=current_threshold
     )
     if new_threshold != current_threshold:
@@ -624,4 +624,5 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (MQTT)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
