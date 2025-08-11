@@ -90,8 +90,8 @@ def big_label(vi_text, en_text, size=18):
     return f"<span style='font-size:{size}px; font-weight:700'>{text}</span>"
 # Hàm hiển thị tiêu đề lớn
 def big_label(vi_text, en_text):
-    text = _(vi_text, en_text)
-    return f"<h4 style='margin:0; padding:0;'>{text}</h4>"
+    return f"<h4 style='margin:0; padding:0;'>{vi_text if vi else en_text}</h4>"
+
 # Files
 DATA_FILE = "crop_data.json"
 HISTORY_FILE = "history_irrigation.json"   # lưu lịch sử sensor + tưới
@@ -679,6 +679,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (MQTT)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
