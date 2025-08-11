@@ -180,36 +180,70 @@ crop_names = {"Ngô": _("Ngô", "Corn"), "Chuối": _("Chuối", "Banana"), "Ớ
 # -----------------------
 # Crop management
 # -----------------------
-st.header(_("🌱 Quản lý cây trồng", "🌱 Crop Management"))
+# Kiểm tra dữ liệu crop_data của thành phố có tồn tại không
+if selected_city not in crop_data:
+    crop_data[selected_city] = {"areas": {}}
 
-if user_type == _("Người điều khiển", "Control Administrator"):
-    st.subheader(_("Thêm / Cập nhật vùng trồng", "Add / Update Plantings"))
-    multiple = st.checkbox(_("Trồng nhiều loại trên khu vực này", "Plant multiple crops in this location"), value=False)
-    if selected_city not in crop_data:
-        crop_data[selected_city] = {"plots": []}
+# Chọn khu vực hoặc thêm mới khu vực
+areas = crop_data[selected_city].get("areas", {})
+area_names = list(areas.keys())
+area_names.append(_("Thêm khu vực mới", "Add new area"))
 
-    if multiple:
-        st.markdown(_("Thêm từng loại cây vào khu vực (bấm 'Thêm cây')", "Add each crop to the area (click 'Add crop')"))
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            add_crop = st.selectbox(_("Chọn loại cây để thêm", "Select crop to add"), [crop_names[k] for k in crops.keys()])
-            add_crop_key = next(k for k, v in crop_names.items() if v == add_crop)
-            add_planting_date = st.date_input(_("Ngày gieo trồng", "Planting date for this crop"), value=date.today())
-        with col2:
-            if st.button(_("➕ Thêm cây", "➕ Add crop")):
-                crop_entry = {"crop": add_crop_key, "planting_date": add_planting_date.isoformat()}
-                crop_data[selected_city]["plots"].append(crop_entry)
-                save_json(DATA_FILE, crop_data)
-                st.success(_("Đã thêm cây vào khu vực.", "Crop added to location."))
-    else:
-        crop_display_names = [crop_names[k] for k in crops.keys()]
-        selected_crop_display = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), crop_display_names)
-        selected_crop = next(k for k, v in crop_names.items() if v == selected_crop_display)
-        planting_date = st.date_input(_("📅 Ngày gieo trồng:", "📅 Planting date:"), value=date.today())
-        if st.button(_("💾 Lưu thông tin trồng", "💾 Save planting info")):
-            crop_data[selected_city] = {"plots": [{"crop": selected_crop, "planting_date": planting_date.isoformat()}]}
+selected_area = st.selectbox(_("Chọn khu vực trồng", "Select planting area"), area_names)
+
+if selected_area == _("Thêm khu vực mới", "Add new area"):
+    new_area_name = st.text_input(_("Nhập tên khu vực mới", "Enter new area name"))
+    if new_area_name:
+        if new_area_name not in area_names:
+            selected_area = new_area_name
+            areas[selected_area] = []
+            crop_data[selected_city]["areas"] = areas
             save_json(DATA_FILE, crop_data)
-            st.success(_("Đã lưu thông tin trồng.", "Planting info saved."))
+            st.success(_("Đã tạo khu vực mới.", "New area created."))
+        else:
+            st.warning(_("Khu vực đã tồn tại.", "Area already exists."))
+
+# Phần thêm cây
+if selected_area and selected_area in crop_data[selected_city]["areas"]:
+    st.subheader(_("Thêm cây vào khu vực", "Add crop to area"))
+    add_crop_display = st.selectbox(_("Chọn loại cây để thêm", "Select crop to add"), [crop_names[k] for k in crops.keys()])
+    add_crop_key = next(k for k, v in crop_names.items() if v == add_crop_display)
+    add_planting_date = st.date_input(_("Ngày gieo trồng", "Planting date for this crop"), value=date.today())
+    if st.button(_("➕ Thêm cây", "➕ Add crop")):
+        crop_entry = {"crop": add_crop_key, "planting_date": add_planting_date.isoformat()}
+        crop_data[selected_city]["areas"][selected_area].append(crop_entry)
+        save_json(DATA_FILE, crop_data)
+        st.success(_("Đã thêm cây vào khu vực.", "Crop added to area."))
+
+# Hiển thị cây trồng theo khu vực
+if selected_area in crop_data[selected_city]["areas"]:
+    st.subheader(_("Thông tin cây trồng khu vực", "Plantings in area"))
+    plots = crop_data[selected_city]["areas"][selected_area]
+    rows = []
+    for p in plots:
+        crop_k = p["crop"]
+        pd_iso = p["planting_date"]
+        try:
+            pd_date = date.fromisoformat(pd_iso)
+        except:
+            pd_date = date.today()
+        min_d, max_d = crops[crop_k]
+        harvest_min = pd_date + timedelta(days=min_d)
+        harvest_max = pd_date + timedelta(days=max_d)
+        days_planted = (date.today() - pd_date).days
+        rows.append({
+            "crop": crop_names[crop_k],
+            "planting_date": pd_date.strftime("%d/%m/%Y"),
+            "expected_harvest_from": harvest_min.strftime("%d/%m/%Y"),
+            "expected_harvest_to": harvest_max.strftime("%d/%m/%Y"),
+            "days_planted": days_planted,
+            "stage": giai_doan_cay(crop_k, days_planted)
+        })
+    df_plots = pd.DataFrame(rows)
+    st.dataframe(df_plots)
+else:
+    st.info(_("Chưa có cây trồng tại khu vực này.", "No crop information in this area."))
+
 
     # ---- Phần cấu hình ngưỡng độ ẩm cho cây trồng đang chọn ----
     # Lấy cây trồng đầu tiên trong khu vực
@@ -445,6 +479,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
