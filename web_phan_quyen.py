@@ -69,7 +69,14 @@ threading.Thread(target=mqtt_thread, daemon=True).start()
 # -----------------------
 st.set_page_config(page_title="Smart Irrigation WebApp", layout="wide")
 st_autorefresh(interval=60 * 1000, key="init_refresh")
-
+st.markdown("""
+    <style>
+        label, .stSelectbox label, .stDateInput label, .stTimeInput label, .stRadio label, .stNumberInput label {
+            font-size: 20px !important;
+            font-weight: bold !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
 # --- I18N ---
 lang = st.sidebar.selectbox("🌐 Language / Ngôn ngữ", ["Tiếng Việt", "English"])
 vi = lang == "Tiếng Việt"
@@ -624,5 +631,6 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (MQTT)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
