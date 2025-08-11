@@ -294,20 +294,6 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         st.subheader(_("Thêm cây vào khu vực", "Add crop to area"))
         add_crop_display = st.selectbox(_("Chọn loại cây để thêm", "Select crop to add"), [crop_names[k] for k in crops.keys()])
         add_crop_key = next(k for k, v in crop_names.items() if v == add_crop_display)
-    # --- Set moisture threshold only for selected crop ---
-    if "moisture_thresholds" not in config:
-        config["moisture_thresholds"] = {"Ngô": 65, "Chuối": 70, "Ớt": 65}
-    moisture_thresholds = config["moisture_thresholds"]
-    current_threshold = moisture_thresholds.get(add_crop_key, 65)
-    new_threshold = st.slider(
-        _("💧 Ngưỡng độ ẩm cho cây này", "💧 Moisture threshold for this crop"),
-        min_value=0, max_value=100, value=current_threshold
-    )
-    if new_threshold != current_threshold:
-        moisture_thresholds[add_crop_key] = new_threshold
-        config["moisture_thresholds"] = moisture_thresholds
-        save_json(CONFIG_FILE, config)
-        st.success(_("Đã lưu ngưỡng độ ẩm cho cây", "Moisture threshold saved for crop"))
         add_planting_date = st.date_input(_("Ngày gieo trồng", "Planting date for this crop"), value=date.today())
         if st.button(_("➕ Thêm cây", "➕ Add crop")):
             crop_entry = {"crop": add_crop_key, "planting_date": add_planting_date.isoformat()}
@@ -345,15 +331,21 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         st.info(_("Khu vực này chưa có cây trồng.", "No crops planted in this area yet."))
 
     # ---- Phần cấu hình ngưỡng độ ẩm cho từng loại cây (chỉ controller) ----
-    st.subheader(_("💧 Cài đặt ngưỡng độ ẩm cho từng loại cây", "💧 Moisture thresholds per crop"))
-    thresholds = config.get("moisture_thresholds", {})
-    changed = False
-    for crop_key in crops.keys():
-        cur = thresholds.get(crop_key, 65)
-        new = st.number_input(f"{crop_names[crop_key]} (%)", min_value=10, max_value=100, value=cur, step=1, key=f"th_{crop_key}")
-        if new != cur:
-            thresholds[crop_key] = new
-            changed = True
+    # --- Single crop moisture threshold ---
+    if "moisture_thresholds" not in config:
+        config["moisture_thresholds"] = {"Ngô": 65, "Chuối": 70, "Ớt": 65}
+    moisture_thresholds = config["moisture_thresholds"]
+    current_threshold = moisture_thresholds.get(add_crop_key, 65)
+    new_threshold = st.slider(
+        _(f"{crop_names[add_crop_key]} (%)", f"{crop_names[add_crop_key]} (%)"),
+        min_value=0, max_value=100, value=current_threshold
+    )
+    if new_threshold != current_threshold:
+        moisture_thresholds[add_crop_key] = new_threshold
+        config["moisture_thresholds"] = moisture_thresholds
+        save_json(CONFIG_FILE, config)
+        st.success(_("Đã lưu ngưỡng độ ẩm cho cây", "Moisture threshold saved for crop"))
+
     if st.button(_("💾 Lưu ngưỡng độ ẩm", "💾 Save moisture thresholds")):
         config["moisture_thresholds"] = thresholds
         save_json(CONFIG_FILE, config)
