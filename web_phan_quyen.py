@@ -178,72 +178,71 @@ required_soil_moisture = {"Ngô": 65, "Chuối": 70, "Ớt": 65}
 crop_names = {"Ngô": _("Ngô", "Corn"), "Chuối": _("Chuối", "Banana"), "Ớt": _("Ớt", "Chili pepper")}
 
 # -----------------------
-# Crop management
+# Crop management with areas (updated)
 # -----------------------
 st.header(_("🌱 Quản lý cây trồng", "🌱 Crop Management"))
 
+# Định nghĩa chung hàm giai_doan_cay để dùng lại
+def giai_doan_cay(crop, days):
+    if crop == "Chuối":
+        if days <= 14: return _("🌱 Mới trồng", "🌱 Newly planted")
+        elif days <= 180: return _("🌿 Phát triển", "🌿 Growing")
+        elif days <= 330: return _("🌼 Ra hoa", "🌼 Flowering")
+        else: return _("🍌 Đã thu hoạch", "🍌 Harvested")
+    elif crop == "Ngô":
+        if days <= 25: return _("🌱 Mới trồng", "🌱 Newly planted")
+        elif days <= 70: return _("🌿 Thụ phấn", "🌿 Pollination")
+        elif days <= 100: return _("🌼 Trái phát triển", "🌼 Kernel growth")
+        else: return _("🌽 Đã thu hoạch", "🌽 Harvested")
+    elif crop == "Ớt":
+        if days <= 20: return _("🌱 Mới trồng", "🌱 Newly planted")
+        elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
+        else: return _("🌶️ Đã thu hoạch", "🌶️ Harvested")
+
+if selected_city not in crop_data or not isinstance(crop_data[selected_city], dict):
+    crop_data[selected_city] = {}
+
+if "areas" not in crop_data[selected_city] or not isinstance(crop_data[selected_city]["areas"], dict):
+    crop_data[selected_city]["areas"] = {}
+
+areas = crop_data[selected_city]["areas"]
+
 if user_type == _("Người điều khiển", "Control Administrator"):
-    st.subheader(_("Thêm / Cập nhật vùng trồng", "Add / Update Plantings"))
-    multiple = st.checkbox(_("Trồng nhiều loại trên khu vực này", "Plant multiple crops in this location"), value=False)
-    if selected_city not in crop_data:
-        crop_data[selected_city] = {"plots": []}
+    st.subheader(_("🌿 Quản lý khu vực trồng cây", "🌿 Manage Planting Areas"))
 
-    if multiple:
-        st.markdown(_("Thêm từng loại cây vào khu vực (bấm 'Thêm cây')", "Add each crop to the area (click 'Add crop')"))
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            add_crop = st.selectbox(_("Chọn loại cây để thêm", "Select crop to add"), [crop_names[k] for k in crops.keys()])
-            add_crop_key = next(k for k, v in crop_names.items() if v == add_crop)
-            add_planting_date = st.date_input(_("Ngày gieo trồng", "Planting date for this crop"), value=date.today())
-        with col2:
-            if st.button(_("➕ Thêm cây", "➕ Add crop")):
-                crop_entry = {"crop": add_crop_key, "planting_date": add_planting_date.isoformat()}
-                crop_data[selected_city]["plots"].append(crop_entry)
+    area_list = list(areas.keys())
+    area_list.append(_("➕ Thêm khu vực mới", "➕ Add new area"))
+    selected_area = st.selectbox(_("Chọn khu vực trồng", "Select planting area"), area_list)
+
+    if selected_area == _("➕ Thêm khu vực mới", "➕ Add new area"):
+        new_area_name = st.text_input(_("Nhập tên khu vực mới", "Enter new area name"))
+        if new_area_name:
+            if new_area_name not in areas:
+                areas[new_area_name] = []
+                crop_data[selected_city]["areas"] = areas
                 save_json(DATA_FILE, crop_data)
-                st.success(_("Đã thêm cây vào khu vực.", "Crop added to location."))
-    else:
-        crop_display_names = [crop_names[k] for k in crops.keys()]
-        selected_crop_display = st.selectbox(_("🌱 Chọn loại nông sản:", "🌱 Select crop type:"), crop_display_names)
-        selected_crop = next(k for k, v in crop_names.items() if v == selected_crop_display)
-        planting_date = st.date_input(_("📅 Ngày gieo trồng:", "📅 Planting date:"), value=date.today())
-        if st.button(_("💾 Lưu thông tin trồng", "💾 Save planting info")):
-            crop_data[selected_city] = {"plots": [{"crop": selected_crop, "planting_date": planting_date.isoformat()}]}
+                st.success(_("Đã tạo khu vực mới.", "New area created."))
+                selected_area = new_area_name
+            else:
+                st.warning(_("Khu vực đã tồn tại.", "Area already exists."))
+
+    if selected_area in areas:
+        st.subheader(_("Thêm cây vào khu vực", "Add crop to area"))
+        add_crop_display = st.selectbox(_("Chọn loại cây để thêm", "Select crop to add"), [crop_names[k] for k in crops.keys()])
+        add_crop_key = next(k for k, v in crop_names.items() if v == add_crop_display)
+        add_planting_date = st.date_input(_("Ngày gieo trồng", "Planting date for this crop"), value=date.today())
+        if st.button(_("➕ Thêm cây", "➕ Add crop")):
+            crop_entry = {"crop": add_crop_key, "planting_date": add_planting_date.isoformat()}
+            areas[selected_area].append(crop_entry)
+            crop_data[selected_city]["areas"] = areas
             save_json(DATA_FILE, crop_data)
-            st.success(_("Đã lưu thông tin trồng.", "Planting info saved."))
+            st.success(_("Đã thêm cây vào khu vực.", "Crop added to area."))
 
-    # ---- Phần cấu hình ngưỡng độ ẩm cho cây trồng đang chọn ----
-    # Lấy cây trồng đầu tiên trong khu vực
-    selected_crop_for_moisture = None
-    if selected_city in crop_data and crop_data[selected_city].get("plots"):
-        selected_crop_for_moisture = crop_data[selected_city]["plots"][0]["crop"]
-
-    if selected_crop_for_moisture is not None:
-        st.subheader(_("⚙️ Cấu hình ngưỡng độ ẩm cho cây trồng", "⚙️ Soil Moisture Threshold Configuration"))
-
-        current_threshold = config.get("moisture_thresholds", {}).get(selected_crop_for_moisture, 65)
-
-        new_threshold = st.number_input(
-            f"{_('Ngưỡng độ ẩm đất cho', 'Soil moisture threshold for')} {crop_names[selected_crop_for_moisture]}",
-            min_value=0,
-            max_value=100,
-            value=current_threshold,
-            step=1,
-            key="moisture_threshold"
-        )
-
-        if st.button(_("💾 Lưu ngưỡng độ ẩm", "💾 Save moisture threshold")):
-            if "moisture_thresholds" not in config:
-                config["moisture_thresholds"] = {}
-            config["moisture_thresholds"][selected_crop_for_moisture] = new_threshold
-            save_json(CONFIG_FILE, config)
-            st.success(_("Đã lưu ngưỡng độ ẩm.", "Moisture threshold saved."))
-
-if user_type == _("Người giám sát", " Monitoring Officer"):
-    st.subheader(_("Thông tin cây trồng tại khu vực", "Plantings at this location"))
-    if selected_city in crop_data and crop_data[selected_city].get("plots"):
-        plots = crop_data[selected_city]["plots"]
+    # Hiển thị cây trồng hiện có trong khu vực
+    if selected_area in areas and areas[selected_area]:
+        st.subheader(_("Thông tin cây trồng trong khu vực", "Plantings in area"))
         rows = []
-        for p in plots:
+        for p in areas[selected_area]:
             crop_k = p["crop"]
             pd_iso = p["planting_date"]
             try:
@@ -254,21 +253,6 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
             harvest_min = pd_date + timedelta(days=min_d)
             harvest_max = pd_date + timedelta(days=max_d)
             days_planted = (date.today() - pd_date).days
-            def giai_doan_cay(crop, days):
-                if crop == "Chuối":
-                    if days <= 14: return _("🌱 Mới trồng", "🌱 Newly planted")
-                    elif days <= 180: return _("🌿 Phát triển", "🌿 Growing")
-                    elif days <= 330: return _("🌼 Ra hoa", "🌼 Flowering")
-                    else: return _("🍌 Đã thu hoạch", "🍌 Harvested")
-                elif crop == "Ngô":
-                    if days <= 25: return _("🌱 Mới trồng", "🌱 Newly planted")
-                    elif days <= 70: return _("🌿 Thụ phấn", "🌿 Pollination")
-                    elif days <= 100: return _("🌼 Trái phát triển", "🌼 Kernel growth")
-                    else: return _("🌽 Đã thu hoạch", "🌽 Harvested")
-                elif crop == "Ớt":
-                    if days <= 20: return _("🌱 Mới trồng", "🌱 Newly planted")
-                    elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
-                    else: return _("🌶️ Đã thu hoạch", "🌶️ Harvested")
             rows.append({
                 "crop": crop_names[crop_k],
                 "planting_date": pd_date.strftime("%d/%m/%Y"),
@@ -280,7 +264,39 @@ if user_type == _("Người giám sát", " Monitoring Officer"):
         df_plots = pd.DataFrame(rows)
         st.dataframe(df_plots)
     else:
-        st.info(_("📍 Chưa có thông tin gieo trồng tại khu vực này.", "📍 No crop information available in this location."))
+        st.info(_("Khu vực này chưa có cây trồng.", "No crops planted in this area yet."))
+
+elif user_type == _("Người giám sát", " Monitoring Officer"):
+    st.subheader(_("🌿 Xem thông tin cây trồng theo khu vực", "View plantings by area"))
+    if areas:
+        selected_area = st.selectbox(_("Chọn khu vực để xem", "Select area to view"), list(areas.keys()))
+        if selected_area in areas and areas[selected_area]:
+            rows = []
+            for p in areas[selected_area]:
+                crop_k = p["crop"]
+                pd_iso = p["planting_date"]
+                try:
+                    pd_date = date.fromisoformat(pd_iso)
+                except:
+                    pd_date = date.today()
+                min_d, max_d = crops[crop_k]
+                harvest_min = pd_date + timedelta(days=min_d)
+                harvest_max = pd_date + timedelta(days=max_d)
+                days_planted = (date.today() - pd_date).days
+                rows.append({
+                    "crop": crop_names[crop_k],
+                    "planting_date": pd_date.strftime("%d/%m/%Y"),
+                    "expected_harvest_from": harvest_min.strftime("%d/%m/%Y"),
+                    "expected_harvest_to": harvest_max.strftime("%d/%m/%Y"),
+                    "days_planted": days_planted,
+                    "stage": giai_doan_cay(crop_k, days_planted)
+                })
+            df_plots = pd.DataFrame(rows)
+            st.dataframe(df_plots)
+        else:
+            st.info(_("Khu vực này chưa có cây trồng.", "No crops planted in this area yet."))
+    else:
+        st.info(_("Chưa có khu vực trồng nào.", "No planting areas available."))
 
 # -----------------------
 # Mode and Watering Schedule (shared config.json)
@@ -445,6 +461,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
