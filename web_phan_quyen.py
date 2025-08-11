@@ -237,7 +237,7 @@ location_names = {
 }
 location_display_names = [location_names[k] for k in locations.keys()]
 #selected_city_display = st.selectbox(_("📍 Chọn địa điểm:", "📍 Select location:"), location_display_names)
-st.markdown("<span style='font-size:20px; font-weight:bold;'>📍 Chọn địa điểm:</span>", unsafe_allow_html=True)
+st.markdown("<span style='font-size:16px; font-weight:bold;'>📍 Chọn địa điểm:</span>", unsafe_allow_html=True)
 selected_city_display = st.selectbox("", location_display_names)
 selected_city = next(k for k, v in location_names.items() if v == selected_city_display)
 latitude, longitude = locations[selected_city]
@@ -633,6 +633,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (MQTT)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
