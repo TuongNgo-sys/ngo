@@ -1,4 +1,4 @@
-C# web_esp.py
+# web_esp.py
 import streamlit as st
 from datetime import datetime, timedelta, date, time
 import threading
@@ -701,6 +701,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (MQTT)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
