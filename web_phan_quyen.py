@@ -429,32 +429,31 @@ st.header(_("⚙️ Cấu hình chung hệ thống", "⚙️ System General Conf
 
 if user_type == _("Người điều khiển", "Control Administrator"):
     col1, col2 = st.columns(2)
+
     with col1:
         st.markdown(_("### ⏲️ Khung giờ tưới nước", "### ⏲️ Watering time window"))
-        #start_time = st.time_input(_("Giờ bắt đầu", "Start time"), value=datetime.strptime(config.get("watering_schedule","06:00-08:00").split("-")[0], "%H:%M").time())
-        #end_time = st.time_input(_("Giờ kết thúc", "End time"), value=datetime.strptime(config.get("watering_schedule","06:00-08:00").split("-")[1], "%H:%M").time())
-#Lấy dữ liệu cũ hoặc mặc định
+
+        # Lấy dữ liệu cũ hoặc mặc định
         default_slots = config.get("watering_slots", [{"start": "06:00", "end": "08:00", "duration": 30}])
-        num_slots = st.number_input(_("Số khung giờ", "Number of slots"), min_value=1, max_value=5, value=len(default_slots))
+        num_slots = st.number_input(_("Số khung giờ", "Number of slots"),
+                                    min_value=1, max_value=5, value=len(default_slots))
 
         watering_slots = []
         for i in range(num_slots):
             slot = default_slots[i] if i < len(default_slots) else {"start": "06:00", "end": "06:30", "duration": 20}
-            col1, col2, col3 = st.columns(3)
-            start_t = col1.time_input(_("Bắt đầu", "Start"), value=datetime.strptime(slot["start"], "%H:%M").time(), key=f"start_{i}")
-            end_t = col2.time_input(_("Kết thúc", "End"), value=datetime.strptime(slot["end"], "%H:%M").time(), key=f"end_{i}")
-            dur = col3.number_input(_("Thời gian tưới (phút)", "Watering duration (min)"), min_value=1, max_value=120, value=slot["duration"], key=f"duration_{i}")
-            watering_slots.append({"start": start_t.strftime("%H:%M"), "end": end_t.strftime("%H:%M"), "duration": dur})
-
-    if st.button(_("💾 Lưu cấu hình", "💾 Save configuration")):
-        config["watering_slots"] = watering_slots
-        config["mode"] = "auto" if mode_sel == _("Auto", "Auto") else "manual"
-        save_json(CONFIG_FILE, config)
-        st.button(_("💾 Lưu cấu hình", "💾 Save configuration"), key="save_watering_slots")
+            c1, c2, c3 = st.columns(3)
+            start_t = c1.time_input(_("Bắt đầu", "Start"),
+                                    value=datetime.strptime(slot["start"], "%H:%M").time(), key=f"start_{i}")
+            end_t = c2.time_input(_("Kết thúc", "End"),
+                                  value=datetime.strptime(slot["end"], "%H:%M").time(), key=f"end_{i}")
+            dur = c3.number_input(_("Thời gian tưới (phút)", "Watering duration (min)"),
+                                  min_value=1, max_value=120, value=slot["duration"], key=f"duration_{i}")
+            watering_slots.append({"start": start_t.strftime("%H:%M"),
+                                   "end": end_t.strftime("%H:%M"),
+                                   "duration": dur})
 
     with col2:
         st.markdown(_("### 🔄 Chế độ hoạt động", "### 🔄 Operation mode"))
-        #mode_sel = st.radio(_("Chọn chế độ", "Select mode"), [_("Auto", "Auto"), _("Manual", "Manual")], index=0 if config.get("mode","auto")=="auto" else 1)
         st.markdown(
             f"<label style='font-size:18px; font-weight:700;'>{_('Chọn chế độ', 'Select mode')}</label>",
             unsafe_allow_html=True
@@ -463,17 +462,20 @@ if user_type == _("Người điều khiển", "Control Administrator"):
                             index=0 if config.get("mode","auto")=="auto" else 1,
                             key="mode_sel", label_visibility="collapsed")
 
-    if st.button(_("💾 Lưu cấu hình", "💾 Save configuration"), key="save_crop_settings"):
-        config["watering_schedule"] = f"{start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}"
+    # Nút lưu cấu hình chung
+    if st.button(_("💾 Lưu cấu hình", "💾 Save configuration")):
+        config["watering_slots"] = watering_slots
         config["mode"] = "auto" if mode_sel == _("Auto", "Auto") else "manual"
         save_json(CONFIG_FILE, config)
         st.success(_("Đã lưu cấu hình.", "Configuration saved."))
+
 else:
-    st.markdown(_("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") + f" **{config.get('watering_schedule','06:00-08:00')}**")
-    st.markdown(_("🔄 Chế độ hoạt động hiện tại:", "🔄 Current operation mode:") + f" **{config.get('mode','auto').capitalize()}**")
+    st.markdown(_("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") +
+                f" **{config.get('watering_schedule','06:00-08:00')}**")
+    st.markdown(_("🔄 Chế độ hoạt động hiện tại:", "🔄 Current operation mode:") +
+                f" **{config.get('mode','auto').capitalize()}**")
 
 mode_flag = config.get("mode", "auto")
-
 # -----------------------
 # Weather API (unchanged)
 # -----------------------
@@ -706,6 +708,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (MQTT)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
