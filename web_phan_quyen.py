@@ -1,4 +1,4 @@
-# web_esp.py
+C# web_esp.py
 import streamlit as st
 from datetime import datetime, timedelta, date, time
 import threading
@@ -297,8 +297,12 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     area_list = list(areas.keys())
     area_list.append(_("➕ Thêm khu vực mới", "➕ Add new area"))
     #selected_area = st.selectbox(_("Chọn khu vực trồng", "Select planting area"), area_list)
-    st.markdown(big_label("Chọn khu vực trồng", "Select planting area"), unsafe_allow_html=True)
-    selected_area = st.selectbox("", area_list, key="selected_area")
+    st.markdown(
+        f"<label style='font-size:18px; font-weight:700;'>{_('Chọn khu vực trồng', 'Select planting area')}</label>",
+        unsafe_allow_html=True
+    )
+    selected_area = st.selectbox(" ", area_list, key="selected_area", label_visibility="collapsed")
+
 
     if selected_area == _("➕ Thêm khu vực mới", "➕ Add new area"):
         new_area_name = st.text_input(_("Nhập tên khu vực mới", "Enter new area name"))
@@ -318,8 +322,13 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         add_crop_display = st.selectbox(_("Chọn loại cây để thêm", "Select crop to add"), [crop_names[k] for k in crops.keys()])
         add_crop_key = next(k for k, v in crop_names.items() if v == add_crop_display)
         #add_planting_date = st.date_input(_("Ngày gieo trồng", "Planting date for this crop"), value=date.today())
-        st.markdown(big_label("Ngày gieo trồng", "Planting date for this crop"), unsafe_allow_html=True)
-        add_planting_date = st.date_input("", value=date.today(), key=f"planting_date_{add_crop_key}")
+        st.markdown(
+            f"<label style='font-size:20px; font-weight:700;'>{_('Ngày gieo trồng', 'Planting date for this crop')}</label>",
+            unsafe_allow_html=True
+        )
+        add_planting_date = st.date_input(" ", value=date.today(),
+                                          key=f"planting_date_{add_crop_key}",
+                                          label_visibility="collapsed")
 
         if st.button(_("➕ Thêm cây", "➕ Add crop")):
             crop_entry = {"crop": add_crop_key, "planting_date": add_planting_date.isoformat()}
@@ -362,8 +371,13 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         config["moisture_thresholds"] = {"Ngô": 65, "Chuối": 70, "Ớt": 65}
     moisture_thresholds = config["moisture_thresholds"]
     current_threshold = moisture_thresholds.get(add_crop_key, 65)
-    st.markdown(big_label(f"Đặt độ ẩm cho {crop_names[add_crop_key]} là:", f"Set humidity for {crop_names[add_crop_key]} is:"), unsafe_allow_html=True)
-    new_threshold = st.slider("", min_value=0, max_value=100, value=current_threshold, key=f"slider_{add_crop_key}")
+    st.markdown(
+        f"<label style='font-size:18px; font-weight:700;'>{_('Đặt độ ẩm cho', 'Set humidity for')} {crop_names[add_crop_key]} {_('là:', 'is:')}</label>",
+        unsafe_allow_html=True
+    )
+    new_threshold = st.slider(" ", min_value=0, max_value=100, value=current_threshold,
+                               key=f"slider_{add_crop_key}", label_visibility="collapsed")
+
 
     if new_threshold != current_threshold:
         moisture_thresholds[add_crop_key] = new_threshold
@@ -436,8 +450,13 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     with col2:
         st.markdown(_("### 🔄 Chế độ hoạt động", "### 🔄 Operation mode"))
         #mode_sel = st.radio(_("Chọn chế độ", "Select mode"), [_("Auto", "Auto"), _("Manual", "Manual")], index=0 if config.get("mode","auto")=="auto" else 1)
-        st.markdown(big_label("Chọn chế độ", "Select mode"), unsafe_allow_html=True)
-        mode_sel = st.radio("", [_("Auto", "Auto"), _("Manual", "Manual")], index=0 if config.get("mode","auto")=="auto" else 1, key="mode_sel")
+        st.markdown(
+            f"<label style='font-size:18px; font-weight:700;'>{_('Chọn chế độ', 'Select mode')}</label>",
+            unsafe_allow_html=True
+        )
+        mode_sel = st.radio(" ", [_("Auto", "Auto"), _("Manual", "Manual")],
+                            index=0 if config.get("mode","auto")=="auto" else 1,
+                            key="mode_sel", label_visibility="collapsed")
 
     if st.button(_("💾 Lưu cấu hình", "💾 Save configuration")):
         config["watering_schedule"] = f"{start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}"
@@ -604,8 +623,11 @@ st.write(f"- {_('Dữ liệu độ ẩm hiện tại', 'Current soil moisture')}
 st.header(_("📊 Biểu đồ lịch sử độ ẩm, nhiệt độ, lưu lượng nước", "📊 Historical Charts"))
 
 #chart_date = st.date_input(_("Chọn ngày để xem dữ liệu", "Select date for chart"), value=date.today())
-st.markdown(big_label("Chọn ngày để xem dữ liệu", "Select date for chart"), unsafe_allow_html=True)
-chart_date = st.date_input("", value=date.today(), key="chart_date")
+st.markdown(
+    f"<label style='font-size:18px; font-weight:700;'>{_('Chọn ngày để xem dữ liệu', 'Select date for chart')}</label>",
+    unsafe_allow_html=True
+)
+chart_date = st.date_input(" ", value=date.today(), key="chart_date", label_visibility="collapsed")
 
 history_data = load_json(HISTORY_FILE, []) or []
 flow_data = load_json(FLOW_FILE, []) or []
@@ -679,6 +701,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (MQTT)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
