@@ -468,7 +468,7 @@ col1, col2, col3 = st.columns(3)
 #col1.metric("🌡️ " + _("Nhiệt độ", "Temperature"), f"{current_weather.get('temperature_2m', 'N/A')} °C")
 #col2.metric("💧 " + _("Độ ẩm", "Humidity"), f"{current_weather.get('relative_humidity_2m', 'N/A')} %")
 #col3.metric("☔ " + _("Khả năng mưa", "Precipitation Probability"), f"{current_weather.get('precipitation_probability', 'N/A')} %")
-col1.markdown(big_label("🌡️ " + _("Nhiệt độ", "Temperature")), unsafe_allow_html=True)
+col1.markdown(big_label("🌡️ Nhiệt độ", "🌡️ Temperature"), unsafe_allow_html=True)
 col1.metric("", f"{current_weather.get('temperature_2m', 'N/A')} °C", key="metric_temp")
 
 col2.markdown(big_label("💧 " + _("Độ ẩm", "Humidity")), unsafe_allow_html=True)
@@ -679,6 +679,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (MQTT)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
