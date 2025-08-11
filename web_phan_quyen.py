@@ -327,22 +327,6 @@ if user_type == _("Người điều khiển", "Control Administrator"):
             })
         df_plots = pd.DataFrame(rows)
         st.dataframe(df_plots)
-
-        # --- Chỉ hiện set độ ẩm cho cây được chọn ---
-        if user_type == _("Người điều khiển", "Control Administrator") and selected_area in areas:
-            if areas[selected_area]:  # Có cây trong khu vực
-                # Lấy cây trồng đầu tiên trong danh sách để setup ngưỡng
-                current_crop = areas[selected_area][-1]["crop"]
-                st.subheader(_("💧 Cấu hình độ ẩm cho cây", "💧 Set moisture threshold for crop"))
-                threshold_val = st.slider(
-                    _(f"Ngưỡng độ ẩm cho {crop_names[current_crop]}", f"Moisture threshold for {crop_names[current_crop]}"),
-                    min_value=0, max_value=100, value=moisture_thresholds.get(current_crop, 65)
-                )
-                if st.button(_("💾 Lưu độ ẩm cây", "💾 Save crop moisture")):
-                    moisture_thresholds[current_crop] = threshold_val
-                    config["moisture_thresholds"] = moisture_thresholds
-                    save_json(CONFIG_FILE, config)
-                    st.success(_("Đã lưu ngưỡng độ ẩm.", "Moisture threshold saved."))
     else:
         st.info(_("Khu vực này chưa có cây trồng.", "No crops planted in this area yet."))
 
