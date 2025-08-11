@@ -450,7 +450,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
             config["watering_slots"] = watering_slots
             config["mode"] = "auto" if mode_sel == _("Auto", "Auto") else "manual"
             save_json(CONFIG_FILE, config)
-            st.button(_("💾 Lưu cấu hình", "💾 Save configuration"), key="save_watering_slots"):
+            st.button(_("💾 Lưu cấu hình", "💾 Save configuration"), key="save_watering_slots")
 
     with col2:
         st.markdown(_("### 🔄 Chế độ hoạt động", "### 🔄 Operation mode"))
@@ -706,6 +706,7 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (MQTT)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
+
 
 
 
