@@ -2,7 +2,6 @@
 import streamlit as st
 from datetime import datetime, timedelta, date, time
 import threading
-import random
 from PIL import Image
 import requests
 import json
@@ -12,11 +11,27 @@ import pytz
 import pandas as pd
 import paho.mqtt.client as mqtt
 
+# -----------------------
+# MQTT & sensor state
+# -----------------------
 sensor_data = None  # biến toàn cục lưu dữ liệu sensor nhận được
 
 MQTT_BROKER = "broker.hivemq.com"
 MQTT_PORT = 1883
 MQTT_TOPIC_SENSOR = "esp32/sensor/data"
+MQTT_TOPIC_PUMP = "esp32/pump/control"
+
+# Hàm gửi lệnh MQTT (tạm thời tạo client mỗi lần)
+def send_mqtt_command(message):
+    try:
+        client = mqtt.Client()
+        client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        client.publish(MQTT_TOPIC_PUMP, message)
+        client.disconnect()
+        return True
+    except Exception as e:
+        st.error(f"Lỗi gửi lệnh MQTT: {e}")
+        return False
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -30,6 +45,7 @@ def on_message(client, userdata, msg):
     try:
         payload = msg.payload.decode("utf-8")
         data = json.loads(payload)
+        # expected payload example: {"soil_moisture": 45, "soil_temp": 28.5, "light": 400, "water_flow": 2.3}
         sensor_data = data
         print(f"Received sensor data: {sensor_data}")
     except Exception as e:
@@ -39,8 +55,11 @@ def mqtt_thread():
     client = mqtt.Client()
     client.on_connect = on_connect
     client.on_message = on_message
-    client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    client.loop_forever()
+    try:
+        client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        client.loop_forever()
+    except Exception as e:
+        print("MQTT thread error:", e)
 
 # Khởi chạy MQTT client trong thread riêng
 threading.Thread(target=mqtt_thread, daemon=True).start()
@@ -59,11 +78,11 @@ def _(vi_text, en_text):
 
 # Files
 DATA_FILE = "crop_data.json"
-HISTORY_FILE = "history_irrigation.json"
-FLOW_FILE = "flow_data.json"  # lưu dữ liệu lưu lượng (esp32) theo thời gian
-CONFIG_FILE = "config.json"   # lưu cấu hình chung: khung giờ tưới + chế độ
+HISTORY_FILE = "history_irrigation.json"   # lưu lịch sử sensor + tưới
+FLOW_FILE = "flow_data.json"
+CONFIG_FILE = "config.json"
 
-def load_json(path, default):
+def load_json(path, default=None):
     if os.path.exists(path):
         try:
             with open(path, "r", encoding="utf-8") as f:
@@ -87,7 +106,17 @@ def add_history_record(sensor_hum, sensor_temp):
     }
     history = load_json(HISTORY_FILE, [])
     history.append(new_record)
-    save_json(HISTORY_FILE, history)
+    # giữ tối đa 1 năm: xoá record cũ hơn 365 ngày
+    cutoff = datetime.now(vn_tz) - timedelta(days=365)
+    filtered = []
+    for r in history:
+        try:
+            t = datetime.fromisoformat(r.get("timestamp"))
+            if t >= cutoff:
+                filtered.append(r)
+        except:
+            filtered.append(r)
+    save_json(HISTORY_FILE, filtered)
 
 # Hàm thêm record lưu lượng vào flow_data
 def add_flow_record(flow_val):
@@ -98,16 +127,50 @@ def add_flow_record(flow_val):
     }
     flow = load_json(FLOW_FILE, [])
     flow.append(new_record)
-    save_json(FLOW_FILE, flow)
+    # giữ 1 năm
+    cutoff = datetime.now(vn_tz) - timedelta(days=365)
+    filtered = []
+    for r in flow:
+        try:
+            t = datetime.fromisoformat(r.get("time"))
+            if t >= cutoff:
+                filtered.append(r)
+        except:
+            filtered.append(r)
+    save_json(FLOW_FILE, filtered)
+
+# Hàm thêm lịch sử hành động tưới (bật/tắt)
+def add_irrigation_action(action, area=None, crop=None):
+    now_iso = datetime.now(vn_tz).isoformat()
+    rec = {
+        "timestamp": now_iso,
+        "action": action,  # "PUMP_ON" / "PUMP_OFF"
+        "area": area,
+        "crop": crop
+    }
+    history = load_json(HISTORY_FILE, [])
+    history.append(rec)
+    # filter 1 year
+    cutoff = datetime.now(vn_tz) - timedelta(days=365)
+    filtered = []
+    for r in history:
+        try:
+            t = datetime.fromisoformat(r.get("timestamp"))
+            if t >= cutoff:
+                filtered.append(r)
+        except:
+            filtered.append(r)
+    save_json(HISTORY_FILE, filtered)
 
 # Load persistent data
-crop_data = load_json(DATA_FILE, {})
-history_data = load_json(HISTORY_FILE, [])
-flow_data = load_json(FLOW_FILE, [])
-config = load_json(CONFIG_FILE, {"watering_schedule": "06:00-08:00", "mode": "auto"})
+crop_data = load_json(DATA_FILE, {}) or {}
+history_data = load_json(HISTORY_FILE, []) or []
+flow_data = load_json(FLOW_FILE, []) or []
+config = load_json(CONFIG_FILE, {"watering_schedule": "06:00-08:00", "mode": "auto"}) or {}
+
+# ensure moisture thresholds in config
 if "moisture_thresholds" not in config:
     config["moisture_thresholds"] = {"Ngô": 65, "Chuối": 70, "Ớt": 65}
-moisture_thresholds = config["moisture_thresholds"]
 
 # timezone
 vn_tz = pytz.timezone("Asia/Ho_Chi_Minh")
@@ -124,12 +187,13 @@ try:
     .led { display:inline-block; width:14px; height:14px; border-radius:50%; margin-right:6px; }
     </style>
     """, unsafe_allow_html=True)
-    st.image(Image.open("logo1.png"), width=1200)
+    if os.path.exists("logo1.png"):
+        st.image(Image.open("logo1.png"), width=1200)
 except:
     st.warning(_("❌ Không tìm thấy logo.png", "❌ logo.png not found"))
 
 st.markdown(f"<h2 style='text-align: center; font-size: 50px;'>🌾 { _('Hệ thống tưới tiêu nông nghiệp thông minh', 'Smart Agricultural Irrigation System') } 🌾</h2>", unsafe_allow_html=True)
-st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }: {now.strftime('%d/%m/%Y')}</h3>", unsafe_allow_html=True)
+st.markdown(f"<h3>⏰ { _('Thời gian hiện tại', 'Current time') }: {now.strftime('%d/%m/%Y %H:%M:%S')}</h3>", unsafe_allow_html=True)
 
 # -----------------------
 # Sidebar - role, auth
@@ -174,7 +238,6 @@ crops = {
     "Chuối": (270, 365),
     "Ớt": (70, 90),
 }
-required_soil_moisture = {"Ngô": 65, "Chuối": 70, "Ớt": 65}
 crop_names = {"Ngô": _("Ngô", "Corn"), "Chuối": _("Chuối", "Banana"), "Ớt": _("Ớt", "Chili pepper")}
 
 # -----------------------
@@ -182,7 +245,7 @@ crop_names = {"Ngô": _("Ngô", "Corn"), "Chuối": _("Chuối", "Banana"), "Ớ
 # -----------------------
 st.header(_("🌱 Quản lý cây trồng", "🌱 Crop Management"))
 
-# Định nghĩa chung hàm giai_doan_cay để dùng lại
+# helper stage function
 def giai_doan_cay(crop, days):
     if crop == "Chuối":
         if days <= 14: return _("🌱 Mới trồng", "🌱 Newly planted")
@@ -199,9 +262,9 @@ def giai_doan_cay(crop, days):
         elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
         else: return _("🌶️ Đã thu hoạch", "🌶️ Harvested")
 
+# ensure structure
 if selected_city not in crop_data or not isinstance(crop_data[selected_city], dict):
     crop_data[selected_city] = {}
-
 if "areas" not in crop_data[selected_city] or not isinstance(crop_data[selected_city]["areas"], dict):
     crop_data[selected_city]["areas"] = {}
 
@@ -226,6 +289,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
             else:
                 st.warning(_("Khu vực đã tồn tại.", "Area already exists."))
 
+    # thêm cây vào khu vực
     if selected_area in areas:
         st.subheader(_("Thêm cây vào khu vực", "Add crop to area"))
         add_crop_display = st.selectbox(_("Chọn loại cây để thêm", "Select crop to add"), [crop_names[k] for k in crops.keys()])
@@ -238,7 +302,7 @@ if user_type == _("Người điều khiển", "Control Administrator"):
             save_json(DATA_FILE, crop_data)
             st.success(_("Đã thêm cây vào khu vực.", "Crop added to area."))
 
-    # Hiển thị cây trồng hiện có trong khu vực
+    # hiển thị cây trong selected_area
     if selected_area in areas and areas[selected_area]:
         st.subheader(_("Thông tin cây trồng trong khu vực", "Plantings in area"))
         rows = []
@@ -265,6 +329,21 @@ if user_type == _("Người điều khiển", "Control Administrator"):
         st.dataframe(df_plots)
     else:
         st.info(_("Khu vực này chưa có cây trồng.", "No crops planted in this area yet."))
+
+    # ---- Phần cấu hình ngưỡng độ ẩm cho từng loại cây (chỉ controller) ----
+    st.subheader(_("💧 Cài đặt ngưỡng độ ẩm cho từng loại cây", "💧 Moisture thresholds per crop"))
+    thresholds = config.get("moisture_thresholds", {})
+    changed = False
+    for crop_key in crops.keys():
+        cur = thresholds.get(crop_key, 65)
+        new = st.number_input(f"{crop_names[crop_key]} (%)", min_value=10, max_value=100, value=cur, step=1, key=f"th_{crop_key}")
+        if new != cur:
+            thresholds[crop_key] = new
+            changed = True
+    if st.button(_("💾 Lưu ngưỡng độ ẩm", "💾 Save moisture thresholds")):
+        config["moisture_thresholds"] = thresholds
+        save_json(CONFIG_FILE, config)
+        st.success(_("Đã lưu ngưỡng độ ẩm.", "Moisture thresholds saved."))
 
 elif user_type == _("Người giám sát", " Monitoring Officer"):
     st.subheader(_("🌿 Xem thông tin cây trồng theo khu vực", "View plantings by area"))
@@ -307,40 +386,22 @@ if user_type == _("Người điều khiển", "Control Administrator"):
     col1, col2 = st.columns(2)
     with col1:
         st.markdown(_("### ⏲️ Khung giờ tưới nước", "### ⏲️ Watering time window"))
-        start_time = st.time_input(_("Giờ bắt đầu", "Start time"), value=datetime.strptime(config["watering_schedule"].split("-")[0], "%H:%M").time())
-        end_time = st.time_input(_("Giờ kết thúc", "End time"), value=datetime.strptime(config["watering_schedule"].split("-")[1], "%H:%M").time())
+        start_time = st.time_input(_("Giờ bắt đầu", "Start time"), value=datetime.strptime(config.get("watering_schedule","06:00-08:00").split("-")[0], "%H:%M").time())
+        end_time = st.time_input(_("Giờ kết thúc", "End time"), value=datetime.strptime(config.get("watering_schedule","06:00-08:00").split("-")[1], "%H:%M").time())
     with col2:
         st.markdown(_("### 🔄 Chế độ hoạt động", "### 🔄 Operation mode"))
         mode_sel = st.radio(_("Chọn chế độ", "Select mode"), [_("Auto", "Auto"), _("Manual", "Manual")], index=0 if config.get("mode","auto")=="auto" else 1)
-       
+
     if st.button(_("💾 Lưu cấu hình", "💾 Save configuration")):
-        # Save to config.json
         config["watering_schedule"] = f"{start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}"
         config["mode"] = "auto" if mode_sel == _("Auto", "Auto") else "manual"
         save_json(CONFIG_FILE, config)
         st.success(_("Đã lưu cấu hình.", "Configuration saved."))
-
 else:
-    st.markdown(_("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") + f" **{config['watering_schedule']}**")
-    st.markdown(_("🔄 Chế độ hoạt động hiện tại:", "🔄 Current operation mode:") + f" **{config['mode'].capitalize()}**")
+    st.markdown(_("⏲️ Khung giờ tưới nước hiện tại:", "⏲️ Current watering time window:") + f" **{config.get('watering_schedule','06:00-08:00')}**")
+    st.markdown(_("🔄 Chế độ hoạt động hiện tại:", "🔄 Current operation mode:") + f" **{config.get('mode','auto').capitalize()}**")
 
 mode_flag = config.get("mode", "auto")
-
-def giai_doan_cay(crop, days):
-    if crop == "Chuối":
-        if days <= 14: return _("🌱 Mới trồng", "🌱 Newly planted")
-        elif days <= 180: return _("🌿 Phát triển", "🌿 Growing")
-        elif days <= 330: return _("🌼 Ra hoa", "🌼 Flowering")
-        else: return _("🍌 Đã thu hoạch", "🍌 Harvested")
-    elif crop == "Ngô":
-        if days <= 25: return _("🌱 Mới trồng", "🌱 Newly planted")
-        elif days <= 70: return _("🌿 Thụ phấn", "🌿 Pollination")
-        elif days <= 100: return _("🌼 Trái phát triển", "🌼 Kernel growth")
-        else: return _("🌽 Đã thu hoạch", "🌽 Harvested")
-    elif crop == "Ớt":
-        if days <= 20: return _("🌱 Mới trồng", "🌱 Newly planted")
-        elif days <= 500: return _("🌼 Ra hoa", "🌼 Flowering")
-        else: return _("🌶️ Đã thu hoạch", "🌶️ Harvested")
 
 # -----------------------
 # Weather API (unchanged)
@@ -362,7 +423,7 @@ col2.metric("💧 " + _("Độ ẩm", "Humidity"), f"{current_weather.get('relat
 col3.metric("☔ " + _("Khả năng mưa", "Precipitation Probability"), f"{current_weather.get('precipitation_probability', 'N/A')} %")
 
 # -----------------------
-# Sensor data from ESP32 (simulated or actual)
+# Sensor data from ESP32
 # -----------------------
 st.subheader(_("📡 Dữ liệu cảm biến thực tế (ESP32)", "📡 Real sensor data (ESP32)"))
 
@@ -387,58 +448,154 @@ else:
     soil_moisture = None
 
 # -----------------------
-# Tưới nước - Logic quyết định
+# Irrigation decision & auto control
 # -----------------------
 st.header(_("🚰 Điều khiển tưới nước", "🚰 Irrigation Control"))
 
-watering_start_str, watering_end_str = config["watering_schedule"].split("-")
+watering_start_str, watering_end_str = config.get("watering_schedule", "06:00-08:00").split("-")
 watering_start = datetime.combine(date.today(), datetime.strptime(watering_start_str, "%H:%M").time())
 watering_end = datetime.combine(date.today(), datetime.strptime(watering_end_str, "%H:%M").time())
 now_time = datetime.now(vn_tz).replace(tzinfo=None)
 
 is_in_watering_time = watering_start <= now_time <= watering_end
 
-if sensor_data is not None:
-    soil_moisture = sensor_data.get("soil_moisture")
+if is_in_watering_time:
+    st.success(_("⏰ Hiện tại đang trong khung giờ tưới.", "⏰ Currently within watering schedule."))
 else:
-    soil_moisture = None
+    st.info(_("⏰ Hiện tại không trong khung giờ tưới.", "⏰ Currently outside watering schedule."))
 
-# Lấy cây trồng đầu tiên trong khu vực để lấy ngưỡng
+st.write(f"Mode: **{config.get('mode','auto')}**")
+
+# chọn khu vực để lấy crop để quyết định tưới
 selected_crop_for_decision = None
-if selected_city in crop_data and crop_data[selected_city].get("plots"):
-    selected_crop_for_decision = crop_data[selected_city]["plots"][0]["crop"]
+selected_area_for_decision = None
+if 'areas' in crop_data.get(selected_city, {}):
+    # nếu controller/monitor đã chọn area UI, dùng selected_area variable if exists
+    # try to infer selected_area from local scope: we used variable earlier in UI blocks
+    try:
+        sel_area = selected_area  # may be defined above
+    except NameError:
+        sel_area = None
+    if sel_area and sel_area in crop_data[selected_city]["areas"] and crop_data[selected_city]["areas"][sel_area]:
+        selected_area_for_decision = sel_area
+        selected_crop_for_decision = crop_data[selected_city]["areas"][sel_area][0]["crop"]
+# fallback: if none, try top-level plots (legacy)
+if not selected_crop_for_decision:
+    if selected_city in crop_data and crop_data[selected_city].get("plots"):
+        selected_crop_for_decision = crop_data[selected_city]["plots"][0]["crop"]
 
-threshold = config.get("moisture_thresholds", {}).get(selected_crop_for_decision, 65) if selected_crop_for_decision else 65
+# retrieve threshold from config
+thresholds = config.get("moisture_thresholds", {})
+threshold = thresholds.get(selected_crop_for_decision, 65) if selected_crop_for_decision else 65
 
-if soil_moisture is not None:
-    should_water = soil_moisture < threshold and mode_flag == "auto" and is_in_watering_time
-else:
-    should_water = False
+# ratios for ON/OFF (you can tweak)
+ON_RATIO = 0.65   # nếu soil_moisture <= threshold * ON_RATIO => bật
+OFF_RATIO = 0.90  # nếu soil_moisture >= threshold * OFF_RATIO => tắt
+
+should_water = False
+if soil_moisture is None:
     st.warning(_("Không có dữ liệu độ ẩm đất để quyết định tưới.", "No soil moisture data for irrigation decision."))
-
-st.write(f"- {_('Ngưỡng độ ẩm đất cần tưới cho cây', 'Soil moisture threshold for crop')}: {threshold} %")
-st.write(f"- {_('Khung giờ tưới nước hiện tại', 'Current watering time window')}: {config['watering_schedule']}")
-st.write(f"- {_('Thời gian hiện tại', 'Current time')}: {now_time.strftime('%H:%M:%S')}")
-st.write(f"- {_('Nhu cầu tưới', 'Watering needed')}: {'✅' if should_water else '❌'}")
-
-# 5 phút chờ xác nhận bật bơm
-if should_water:
-    if user_type == _("Người điều khiển", "Control Administrator"):
-        st.warning(_("🌊 Cần bật bơm trong 5 phút tới, vui lòng xác nhận", "🌊 Pump should be turned ON in next 5 minutes, please confirm"))
-        col_yes, col_no = st.columns(2)
-        with col_yes:
-            if st.button(_("✅ Đồng ý bật bơm", "✅ Confirm turn ON pump")):
-                if send_mqtt_command("PUMP_ON"):
-                    st.success(_("Đã gửi lệnh bật bơm.", "Pump ON command sent."))
-        with col_no:
-            if st.button(_("❌ Không bật bơm", "❌ Cancel pump ON")):
-                st.info(_("Bơm sẽ không được bật.", "Pump will NOT be turned on."))
-        # Nếu không xác nhận sau 5 phút (cần bạn bổ sung logic thời gian chờ 5 phút phía backend hoặc xử lý ngoài)
-    else:
-        st.info(_("Chỉ người điều khiển mới có thể bật bơm.", "Only controller can turn ON pump."))
-
 else:
-    st.info(_("Không cần tưới vào lúc này.", "No irrigation needed now."))
+    # quyết định tự động dựa trên threshold
+    if config.get("mode", "auto") == "auto" and is_in_watering_time:
+        if soil_moisture <= threshold * ON_RATIO:
+            should_water = True
+            st.warning(_("Độ ẩm thấp hơn ngưỡng. Hệ thống sẽ bật bơm (auto).", "Soil moisture below threshold. System will turn pump ON (auto)."))
+            # gửi lệnh ON
+            ok = send_mqtt_command("PUMP_ON")
+            if ok:
+                add_irrigation_action("PUMP_ON", area=selected_area_for_decision, crop=selected_crop_for_decision)
+                st.success(_("Đã gửi lệnh BẬT bơm đến ESP32.", "Sent PUMP_ON to ESP32."))
+        elif soil_moisture >= threshold * OFF_RATIO:
+            should_water = False
+            st.info(_("Độ ẩm đã đạt gần ngưỡng (>=90%). Hệ thống sẽ tắt bơm (auto).", "Soil moisture reached near threshold (>=90%). System will turn pump OFF (auto)."))
+            ok = send_mqtt_command("PUMP_OFF")
+            if ok:
+                add_irrigation_action("PUMP_OFF", area=selected_area_for_decision, crop=selected_crop_for_decision)
+                st.success(_("Đã gửi lệnh TẮT bơm đến ESP32.", "Sent PUMP_OFF to ESP32."))
+
+# nếu chế độ manual thì hiển thị nút cho controller
+if config.get("mode", "auto") == "manual":
+    st.info(_("🔧 Chế độ thủ công - chỉ người điều khiển có thể gửi lệnh.", "🔧 Manual mode - only controller can send commands."))
+    if user_type == _("Người điều khiển", "Control Administrator"):
+        col_on, col_off = st.columns(2)
+        with col_on:
+            if st.button(_("Bật bơm (Gửi lệnh)", "Turn pump ON (send)")):
+                if send_mqtt_command("PUMP_ON"):
+                    add_irrigation_action("PUMP_ON", area=selected_area_for_decision, crop=selected_crop_for_decision)
+                    st.success(_("Đã gửi lệnh bật bơm.", "Pump ON command sent."))
+        with col_off:
+            if st.button(_("Tắt bơm (Gửi lệnh)", "Turn pump OFF (send)")):
+                if send_mqtt_command("PUMP_OFF"):
+                    add_irrigation_action("PUMP_OFF", area=selected_area_for_decision, crop=selected_crop_for_decision)
+                    st.success(_("Đã gửi lệnh tắt bơm.", "Pump OFF command sent."))
+else:
+    # nếu auto và không cần water thì thông báo
+    if soil_moisture is not None and not should_water:
+        st.info(_("💧 Không cần tưới ngay lúc này.", "No irrigation needed at this moment."))
+
+st.write(f"- {_('Ngưỡng (threshold) cho cây', 'Threshold for crop')}: {threshold} %")
+st.write(f"- {_('Khung giờ tưới nước', 'Watering schedule')}: {config.get('watering_schedule','06:00-08:00')}")
+st.write(f"- {_('Thời gian hiện tại', 'Current time')}: {now_time.strftime('%H:%M:%S')}")
+st.write(f"- {_('Dữ liệu độ ẩm hiện tại', 'Current soil moisture')}: {soil_moisture if soil_moisture is not None else 'N/A'} %")
+
+# -----------------------
+# Show historical charts (độ ẩm và lưu lượng)
+# -----------------------
+st.header(_("📊 Biểu đồ lịch sử độ ẩm, nhiệt độ, lưu lượng nước", "📊 Historical Charts"))
+
+chart_date = st.date_input(_("Chọn ngày để xem dữ liệu", "Select date for chart"), value=date.today())
+
+history_data = load_json(HISTORY_FILE, []) or []
+flow_data = load_json(FLOW_FILE, []) or []
+
+if len(history_data) == 0 or len(flow_data) == 0:
+    st.info(_("📋 Chưa có dữ liệu lịch sử để hiển thị.", "📋 No historical data to display."))
+else:
+    df_hist_all = pd.DataFrame(history_data)
+    if 'timestamp' in df_hist_all.columns:
+        df_hist_all['timestamp'] = pd.to_datetime(df_hist_all['timestamp'], errors='coerce')
+        df_hist_all = df_hist_all.dropna(subset=['timestamp'])
+        df_hist_all['date'] = df_hist_all['timestamp'].dt.date
+        df_day = df_hist_all[df_hist_all['date'] == chart_date]
+    else:
+        df_day = pd.DataFrame()
+
+    df_flow_all = pd.DataFrame(flow_data)
+    if 'time' in df_flow_all.columns:
+        df_flow_all['time'] = pd.to_datetime(df_flow_all['time'], errors='coerce')
+        df_flow_all = df_flow_all.dropna(subset=['time'])
+        df_flow_all['date'] = df_flow_all['time'].dt.date
+        df_flow_day = df_flow_all[df_flow_all['date'] == chart_date]
+    else:
+        df_flow_day = pd.DataFrame()
+    if df_day.empty or df_flow_day.empty:
+        st.info(_("📋 Không có dữ liệu trong ngày này.", "📋 No data for selected date."))
+    else:
+        import matplotlib.pyplot as plt
+        fig, ax1 = plt.subplots(figsize=(12, 5))
+        ax1.plot(pd.to_datetime(df_day['timestamp']), df_day['sensor_hum'], label=_("Độ ẩm đất", "Soil Humidity"))
+        ax1.set_xlabel(_("Thời gian", "Time"))
+        ax1.set_ylabel(_("Độ ẩm đất (%)", "Soil Humidity (%)"))
+        ax2 = ax1.twinx()
+        ax2.plot(pd.to_datetime(df_day['timestamp']), df_day['sensor_temp'], label=_("Nhiệt độ", "Temperature"))
+        ax2.set_ylabel(_("Nhiệt độ (°C)", "Temperature (°C)"))
+        ax1.legend(loc='upper left')
+        ax2.legend(loc='upper right')
+        plt.title(_("Lịch sử độ ẩm đất và nhiệt độ", "Soil Humidity and Temperature History"))
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        st.pyplot(fig)
+
+        fig2, ax3 = plt.subplots(figsize=(12, 3))
+        ax3.plot(pd.to_datetime(df_flow_day['time']), df_flow_day['flow'], label=_("Lưu lượng nước (L/min)", "Water Flow (L/min)"))
+        ax3.set_xlabel(_("Thời gian", "Time"))
+        ax3.set_ylabel(_("Lưu lượng nước (L/min)", "Water Flow (L/min)"))
+        ax3.legend()
+        plt.title(_("Lịch sử lưu lượng nước", "Water Flow History"))
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        st.pyplot(fig2)
 
 # -----------------------
 # Lịch sử tưới
@@ -448,30 +605,16 @@ st.header(_("📅 Lịch sử tưới nước", "📅 Irrigation History"))
 history = load_json(HISTORY_FILE, [])
 if history:
     df_hist = pd.DataFrame(history)
-    df_hist["timestamp"] = pd.to_datetime(df_hist["timestamp"])
+    if 'timestamp' in df_hist.columns:
+        df_hist["timestamp"] = pd.to_datetime(df_hist["timestamp"], errors='coerce')
     df_hist = df_hist.sort_values(by="timestamp", ascending=False)
     st.dataframe(df_hist)
 else:
     st.info(_("Chưa có lịch sử tưới.", "No irrigation history."))
 
 # -----------------------
-# Lưu file và kết thúc
+# Footer
 # -----------------------
-
 st.markdown("---")
-st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
+st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (MQTT)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
