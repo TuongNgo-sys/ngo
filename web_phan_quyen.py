@@ -202,10 +202,7 @@ if selected_area == _("Thêm khu vực mới", "Add new area"):
             st.success(_("Đã tạo khu vực mới.", "New area created."))
         else:
             st.warning(_("Khu vực đã tồn tại.", "Area already exists."))
-if selected_city not in crop_data or not isinstance(crop_data[selected_city], dict):
-    crop_data[selected_city] = {"areas": {}}
-elif "areas" not in crop_data[selected_city] or not isinstance(crop_data[selected_city]["areas"], dict):
-    crop_data[selected_city]["areas"] = {}
+
 # Phần thêm cây
 if selected_area and selected_area in crop_data[selected_city]["areas"]:
     st.subheader(_("Thêm cây vào khu vực", "Add crop to area"))
@@ -482,8 +479,6 @@ else:
 st.markdown("---")
 st.caption("📡 API thời tiết: Open-Meteo | Dữ liệu cảm biến: ESP32-WROOM (giả lập nếu chưa có)")
 st.caption("Người thực hiện: Ngô Nguyễn Định Tường-Mai Phúc Khang")
-
-
 
 
 
